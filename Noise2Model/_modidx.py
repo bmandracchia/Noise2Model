@@ -5,4 +5,4 @@ d = { 'settings': { 'branch': 'main',
                 'doc_host': 'https://bmandracchia.github.io',
                 'git_url': 'https://github.com/bmandracchia/Noise2Model',
                 'lib_path': 'Noise2Model'},
-  'syms': {'Noise2Model.core': {'Noise2Model.core.foo': ('core.html#foo', 'Noise2Model/core.py')}}}
+  'syms': {'Noise2Model.core': {'Noise2Model.core.get_gt': ('test.html#get_gt', 'Noise2Model/core.py')}}}

@@ -1,0 +1,30 @@
+[
+  {
+    "objectID": "test.html",
+    "href": "test.html",
+    "title": "Test",
+    "section": "",
+    "text": "path = Path('../_data/Confocal_BPAE_G')\nim3 = Image.open(path/'raw/3/HV110_P0500510000.png')\n# show_image(im3);\nim3.to_thumb(200)\n\n\n\n\n\nbs, size = 4, 512\n# arch = models.resnet34\npath_train_raw = Path(path/\"raw\")\npath_train_gt = Path(path/\"gt\")\n\n\nfnames = get_image_files(path_train_raw)\nprint(parent_label(fnames[0]))\nImage.open(fnames[0]).to_thumb(200)\n\n7\n\n\n\n\n\n\nsource\n\nget_gt\n\n get_gt (fn)\n\n\nImage.open(get_gt(fnames[0])).to_thumb(200)\n\n\n\n\n\ndblock = DataBlock(blocks    = (ImageBlock(cls=PILImageBW), ImageBlock(cls=PILImageBW)),\n                   get_items = get_image_files, \n                   get_y = get_gt,\n                   splitter  = RandomSplitter(valid_pct=0.2),\n                   item_tfms = RandomCrop(32),\n                   )\n# dblock.summary(path_train_raw)\n# dsets = dblock.datasets(path_train_raw)\n# dsets.train[0]\ndls = dblock.dataloaders(path_train_raw)\ndls.show_batch(max_n=1, cmap='gray')\n\n\n\n\n\n# from fastai.layers import *\nks = 3\nclass Autoencoder(nn.Module):\n    def __init__(self):\n        super(Autoencoder, self).__init__()\n        # Input size: [batch, 3, 32, 32]\n        # Output size: [batch, 3, 32, 32]\n        self.encoder = nn.Sequential(\n            ConvLayer(1, 12, ks=ks),            # [batch, 12, 16, 16]\n            ConvLayer(12, 24, ks=ks),           # [batch, 24, 8, 8]\n            ConvLayer(24, 48, ks=ks),           # [batch, 48, 4, 4]\n        )\n        self.decoder = nn.Sequential(\n            ConvLayer(48, 24, ks=ks, transpose=True, padding=(ks-1)//2),  # [batch, 24, 8, 8]\n            ConvLayer(24, 12, ks=ks, transpose=True, padding=(ks-1)//2),  # [batch, 12, 16, 16]\n            ConvLayer(12, 1, ks=ks, transpose=True, padding=(ks-1)//2, act_cls=None),   # [batch, 3, 32, 32]\n            nn.Sigmoid(),\n        )\n        \n    def encode(self, x): return self.encoder(x)\n    \n    def decode(self, x): return self.decoder(x)\n\n    def forward(self, x):\n        encoded = self.encoder(x)\n        decoded = self.decoder(encoded)\n        return x - decoded\n\n\nautoencoder = Autoencoder()\nlearn = Learner(dls, autoencoder, loss_func = F.mse_loss)\nlearn.lr_find()\n# learn.model\n\n\n\n\nSuggestedLRs(valley=0.00363078061491251)\n\n\n\n\n\n\nlearn.fit_one_cycle(20, lr_max = 1e-01)\n\n\n\n\nepoch\ntrain_loss\nvalid_loss\ntime\n\n\n\n\n0\n0.242263\n0.217057\n00:08\n\n\n1\n0.218135\n0.215167\n00:08\n\n\n2\n0.181392\n0.103382\n00:08\n\n\n3\n0.139135\n0.034893\n00:07\n\n\n4\n0.104895\n0.067672\n00:08\n\n\n5\n0.086412\n0.898298\n00:07\n\n\n6\n0.067680\n0.386272\n00:07\n\n\n7\n0.053014\n0.006070\n00:08\n\n\n8\n0.041790\n0.005546\n00:08\n\n\n9\n0.033191\n0.004940\n00:07\n\n\n10\n0.026620\n0.004496\n00:08\n\n\n11\n0.021554\n0.004165\n00:07\n\n\n12\n0.017603\n0.003920\n00:08\n\n\n13\n0.014524\n0.003739\n00:08\n\n\n14\n0.012121\n0.003611\n00:08\n\n\n15\n0.010228\n0.003522\n00:07\n\n\n16\n0.008747\n0.003467\n00:08\n\n\n17\n0.007575\n0.003437\n00:07\n\n\n18\n0.006670\n0.003425\n00:08\n\n\n19\n0.005962\n0.003423\n00:07\n\n\n\n\n\n\nlearn.show_results(max_n=1, cmap='gray')"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Noise2Model",
+    "section": "",
+    "text": "This file will become your README and also the index of your documentation."
+  },
+  {
+    "objectID": "index.html#install",
+    "href": "index.html#install",
+    "title": "Noise2Model",
+    "section": "Install",
+    "text": "Install\npip install Noise2Model"
+  },
+  {
+    "objectID": "index.html#how-to-use",
+    "href": "index.html#how-to-use",
+    "title": "Noise2Model",
+    "section": "How to use",
+    "text": "How to use\nFill me in please! Don’t forget code examples:\n\n1+1\n\n2"
+  }
+]

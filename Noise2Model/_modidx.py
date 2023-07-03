@@ -5,6 +5,7 @@ d = { 'settings': { 'branch': 'main',
                 'doc_host': 'https://bmandracchia.github.io',
                 'git_url': 'https://github.com/bmandracchia/Noise2Model',
                 'lib_path': 'Noise2Model'},
-  'syms': { 'Noise2Model.core': {'Noise2Model.core.get_gt': ('core.html#get_gt', 'Noise2Model/core.py')},
+  'syms': { 'Noise2Model.core': { 'Noise2Model.core.get_gt': ('core.html#get_gt', 'Noise2Model/core.py'),
+                                  'Noise2Model.core.get_noisy_pair': ('core.html#get_noisy_pair', 'Noise2Model/core.py')},
             'Noise2Model.test1': {'Noise2Model.test1.get_gt': ('test.html#get_gt', 'Noise2Model/test1.py')},
             'Noise2Model.test2': {'Noise2Model.test2.get_gt': ('test.html#get_gt', 'Noise2Model/test2.py')}}}

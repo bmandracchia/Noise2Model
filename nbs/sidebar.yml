@@ -3,5 +3,6 @@ website:
     contents:
       - index.ipynb
       - 00_core.ipynb
+      - 01_models.ipynb
       - 91_Test.ipynb
       - 92_Test.ipynb

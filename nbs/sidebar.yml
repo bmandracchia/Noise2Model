@@ -4,5 +4,5 @@ website:
       - index.ipynb
       - 00_core.ipynb
       - 01_models.ipynb
-      - 91_Test.ipynb
-      - 92_Test.ipynb
+      - 91_demo.demo1.ipynb
+      - 92_demo.demo2.ipynb

@@ -7,7 +7,8 @@ __all__ = ['attributesFromDict', 'gaussian_diag', 'batch_PSNR', 'weights_init_ka
 # %% ../nbs/09_utils.ipynb 3
 from fastai.vision.all import torch, nn
 import numpy as np
-# from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+from torchmetrics.functional.image import structural_similarity_index_measure as structural_similarity
+from torchmetrics.functional.image import peak_signal_noise_ratio
 import math
 
 # %% ../nbs/09_utils.ipynb 4
@@ -73,13 +74,6 @@ def mean_psnr(denoised, imclean, data_range=1.0):
         psnrs[b] = psnr
     return mean_psnr / n_blk, psnrs
 
-def batch_PSNR(img, imclean, data_range):
-    Img = img.data.cpu().numpy().astype(np.float32)
-    Iclean = imclean.data.cpu().numpy().astype(np.float32)
-    PSNR = 0
-    for i in range(Img.shape[0]):
-        PSNR += peak_signal_noise_ratio(Iclean[i,:,:,:], Img[i,:,:,:], data_range=data_range)
-    return (PSNR/Img.shape[0])
 
 def kldiv_simple(real_noise, sampled_noise):
     bw = 0.2 / 64	
@@ -109,7 +103,7 @@ def batch_SSIM(img, imclean, data_range):
     Iclean = imclean.data.cpu().numpy().astype(np.float32)
     SSIM = 0
     for i in range(Img.shape[0]):
-        SSIM += structural_similarity(Iclean[i].transpose((1, 2, 0)), Img[i].transpose((1, 2, 0)), data_range=data_range,  sigma=0.8, multichannel=True, gaussian_weights=True, use_sample_covariance=False)
+        SSIM += structural_similarity(Iclean[i].transpose((1, 2, 0)), Img[i].transpose((1, 2, 0)), data_range=data_range,  sigma=0.8)
     return (SSIM/Img.shape[0])
 
 def weights_init_orthogonal(m):

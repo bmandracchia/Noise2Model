@@ -4,5 +4,8 @@ website:
       - index.ipynb
       - 00_core.ipynb
       - 01_models.ipynb
+      - 02_noiseflow_layers.ipynb
+      - 03_noise2noiseflow.ipynb
+      - 09_utils.ipynb
       - 91_demo.demo1.ipynb
       - 92_demo.demo2.ipynb

@@ -3,17 +3,17 @@
 # %% auto 0
 __all__ = ['get_gt', 'get_noisy_pair']
 
-# %% ../nbs/00_core.ipynb 3
+# %% ../nbs/00_core.ipynb 5
 from fastai.vision.all import *
 from fastai.data.all import *
 import torch.nn.functional as F
 
-# %% ../nbs/00_core.ipynb 4
+# %% ../nbs/00_core.ipynb 6
 def get_gt(path, gt_file_name="avg50.png"): 
     def _fn(fn): return Path(path/"gt")/f"{parent_label(fn)}"/gt_file_name
     return _fn
 
-# %% ../nbs/00_core.ipynb 6
+# %% ../nbs/00_core.ipynb 8
 from random import randint
 
 def get_noisy_pair(fn):

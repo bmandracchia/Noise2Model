@@ -3,14 +3,12 @@
 # %% auto 0
 __all__ = ['DnCNN', 'UNet', 'SubNet2Conv']
 
-# %% ../nbs/01_models.ipynb 3
+# %% ../nbs/01_models.ipynb 4
 from fastai.vision.all import ConvLayer, nn
 from torch import cat as torch_cat
 from .utils import attributesFromDict
 
-# %% ../nbs/01_models.ipynb 4
-# from fastai.vision.all import ConvLayer, nn
-
+# %% ../nbs/01_models.ipynb 5
 class DnCNN(nn.Module):
     def __init__(self, channels, num_of_layers=9, features=64, kernel_size=3):
         super(DnCNN, self).__init__()
@@ -26,10 +24,7 @@ class DnCNN(nn.Module):
         denoised = x - residual
         return denoised
 
-# %% ../nbs/01_models.ipynb 5
-# from fastai.vision.all import ConvLayer, nn
-# from torch import cat as torch_cat
-
+# %% ../nbs/01_models.ipynb 6
 class UNet(nn.Module):
     def __init__(self,
                  depth=4,

@@ -7,5 +7,5 @@ website:
       - 02_noiseflow_layers.ipynb
       - 03_noise2noiseflow.ipynb
       - 09_utils.ipynb
-      - 91_demo.demo1.ipynb
-      - 92_demo.demo2.ipynb
+      - 91_demo_demo1.ipynb
+      - 92_demo_demo2.ipynb

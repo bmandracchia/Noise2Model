@@ -14,7 +14,7 @@ import math
 # %% ../nbs/09_utils.ipynb 4
 def attributesFromDict(d):
     self = d.pop('self')
-    for n, v in d.iteritems( ):
+    for n, v in d.items():
         setattr(self, n, v)
 
 # %% ../nbs/09_utils.ipynb 5

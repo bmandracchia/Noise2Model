@@ -4,20 +4,20 @@
 __all__ = ['NoiseFlow', 'Noise2NoiseFlow']
 
 # %% ../nbs/03_noise2noiseflow.ipynb 4
-from fastai.vision.all import nn, torch
+from fastai.vision.all import nn, torch, np
+from .utils import attributesFromDict
 from .models import DnCNN, UNet
-from .utils import gaussian_diag, batch_PSNR, weights_init_kaiming, weights_init_orthogonal
-import numpy as np
+from .utils import gaussian_diag, batch_PSNR, weights_init_orthogonal #, weights_init_kaiming
 
 
-# %% ../nbs/03_noise2noiseflow.ipynb 6
-# from model.flow_layers.conv2d1x1 import Conv2d1x1
-# from model.flow_layers.affine_coupling import AffineCoupling, ShiftAndLogScale
-# from model.flow_layers.signal_dependant import SignalDependant
-# from model.flow_layers.gain import Gain
-# from model.flow_layers.utils import SdnModelScale
+# %% ../nbs/03_noise2noiseflow.ipynb 5
+from .layers.conv2d1x1 import Conv2d1x1
+from .layers.affine_coupling import AffineCoupling, ShiftAndLogScale
+from .layers.signal_dependant import SignalDependant
+from .layers.gain import Gain
+# from Noise2Model.layers.utils import SdnModelScale
 
-
+# %% ../nbs/03_noise2noiseflow.ipynb 7
 class NoiseFlow(nn.Module):
 
     def __init__(self, x_shape, arch, flow_permutation, param_inits, lu_decomp):
@@ -157,7 +157,7 @@ class NoiseFlow(nn.Module):
 
         return logp, sample
 
-# %% ../nbs/03_noise2noiseflow.ipynb 8
+# %% ../nbs/03_noise2noiseflow.ipynb 9
 class Noise2NoiseFlow(nn.Module):
     def __init__(self, x_shape, arch, flow_permutation, param_inits, lu_decomp, denoiser_model='dncnn', dncnn_num_layers=9, lmbda=262144):
         super(Noise2NoiseFlow, self).__init__()

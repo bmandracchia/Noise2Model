@@ -44,7 +44,7 @@ def SubNetConv(ks=3,
         s = ConvLayer(n_in,n_out,ks=ks, stride=stride, padding=padding, bias=bias, ndim=ndim, norm_type=norm_type, bn_1st=bn_1st,
                  act_cls=act_cls, transpose=transpose, init=init, xtra=xtra, bias_std=bias_std)
         if dropout is not None and dropout > 0: s = nn.Sequential(s,nn.Dropout(dropout))
-        for i in range(n_conv-1):
+        for _ in range(n_conv-1):
             t = ConvLayer(n_out,n_out,ks=ks, stride=stride, padding=padding, bias=bias, ndim=ndim, norm_type=norm_type, bn_1st=bn_1st,
                  act_cls=act_cls, transpose=transpose, init=init, xtra=xtra, bias_std=bias_std)
             if dropout is not None and dropout > 0: t = nn.Sequential(t,nn.Dropout(dropout))
@@ -55,7 +55,19 @@ def SubNetConv(ks=3,
 
 # %% ../nbs/01_models.ipynb 11
 class _Net_recurse(nn.Module):
-    def __init__(self, parameters):
+    def __init__(self, 
+                depth=4,						# depth of the UNet network
+				mult_chan=32,					# number of filters at first layer
+				in_channels=1,					# number of input channels
+				kernel_size=3,					# kernel size of convolutional layers
+				ndim=2,							# number of spatial dimensions of the input data
+				n_conv_per_depth=2,				# number of convolutions per layer
+				activation=nn.ReLU,				# activation function used in convolutional layers
+				norm_type=NormType.Batch,
+				dropout=0.0,
+				pool=MaxPool,
+				pool_size=2,
+        ):
         """Class for recursive definition of U-network.p
 
         Parameters:
@@ -65,27 +77,26 @@ class _Net_recurse(nn.Module):
         """
         super().__init__()
         # Parameters 
-        self.depth = parameters.depth
-        n_out = parameters.in_channels*parameters.mult_chan
-        ks = parameters.kernel_size
-        ndim = parameters.ndim
-        n_in, n_conv = (parameters.in_channels, parameters.n_conv_per_depth)
-
-        # Layers
-        Pooling = parameters.pool(ks=parameters.pool_size, ndim=ndim)
-        UpSample = nn.Upsample(scale_factor=parameters.pool_size, mode='nearest')
-        SubNet_Conv = SubNetConv(ks=ks, stride=1,padding=None, bias=None, ndim=ndim, norm_type=parameters.norm_type, 
-                                 bn_1st=True, act_cls=parameters.activation, transpose=False, dropout=parameters.dropout)
+        self.depth = depth
+        n_out = in_channels*mult_chan
+        
+        # Layer types
+        Pooling = pool(ks=pool_size, ndim=ndim)
+        UpSample = nn.Upsample(scale_factor=pool_size, mode='nearest')
+        SubNet_Conv = SubNetConv(ks=kernel_size, stride=1,padding=None, bias=None, ndim=ndim, norm_type=norm_type, 
+                                 bn_1st=True, act_cls=activation, transpose=False, dropout=dropout)
         
         # Blocks        
-        self.sub_conv_more = SubNet_Conv(n_in, n_out, n_conv)        
+        self.sub_conv_more = SubNet_Conv(in_channels, n_out, n_conv_per_depth)        
         if self.depth > 0:
-            parameters.in_channels = n_out; parameters.mult_chan = 2; parameters.depth=(self.depth - 1)
-            self.sub_u = nn.Sequential(Pooling,                         # layer reducing the image size (usually a pooling layer)
-                                       _Net_recurse(parameters),        # lower unet level
-                                       UpSample,                        # layer increasing the image size (usually an upsampling layer)
+            in_channels = n_out; mult_chan = 2; depth=(self.depth - 1)
+            self.sub_u = nn.Sequential(Pooling,                                                         # layer reducing the image size (usually a pooling layer)
+                                       _Net_recurse(depth, mult_chan, in_channels, kernel_size, 
+                                                    ndim, n_conv_per_depth, activation, norm_type, 
+                                                    dropout, pool, pool_size),                          # lower unet level
+                                       UpSample,                                                        # layer increasing the image size (usually an upsampling layer)
                                        )
-            self.sub_conv_less = SubNet_Conv(3*n_out, n_out, n_conv)
+            self.sub_conv_less = SubNet_Conv(3*n_out, n_out, n_conv_per_depth)
 
     def forward(self, x):
         if self.depth == 0:
@@ -100,15 +111,15 @@ class _Net_recurse(nn.Module):
 # %% ../nbs/01_models.ipynb 12
 class UNet(nn.Module):
 	def __init__(self,
-				depth=4,
-				mult_chan=32,
-				in_channels=1,
-				out_channels=1,
-				last_activation=None,
-				kernel_size=3,
-				ndim=2,
-				n_conv_per_depth=2,
-				activation=nn.ReLU,
+				depth=4,						# depth of the UNet network
+				mult_chan=32,					# number of filters at first layer
+				in_channels=1,					# number of input channels
+				out_channels=1,					# number of output channels
+				last_activation=None,			# last activation before final result
+				kernel_size=3,					# kernel size of convolutional layers
+				ndim=2,							# number of spatial dimensions of the input data
+				n_conv_per_depth=2,				# number of convolutions per layer
+				activation='ReLU',				# activation function used in convolutional layers
 				norm_type=NormType.Batch,
 				dropout=0.0,
 				pool=MaxPool,
@@ -118,15 +129,12 @@ class UNet(nn.Module):
 				eps_scale=1e-3,
 				):
 		super().__init__()
-		attributesFromDict(locals())
+		last_activation = getattr(nn.functional, f"{activation.lower()}") if last_activation == None else getattr(nn.functional, f"{last_activation.lower()}") 
+		activation = getattr(nn, f"{activation}")
+		attributesFromDict(locals())		# stores all the input parameters in self
 
-		parameters = self
-		self.net_recurse = _Net_recurse(parameters)
-		
-		if last_activation is None:
-			last_activation = activation if not residual else None
-			self.last_activation = activation
-		self.conv_out = ConvLayer(mult_chan, out_channels, ndim=ndim, ks=kernel_size, norm_type=None, act_cls=last_activation, padding=1)
+		self.net_recurse = _Net_recurse(depth, mult_chan, in_channels, kernel_size, ndim, n_conv_per_depth, activation, norm_type, dropout, pool, pool_size)
+		self.conv_out = ConvLayer(mult_chan, out_channels, ndim=ndim, ks=kernel_size, norm_type=None, act_cls=None, padding=1)
 
 	def forward(self, x):
 		x_rec = self.net_recurse(x)
@@ -135,7 +143,7 @@ class UNet(nn.Module):
 		if self.residual:
 			if not (self.out_channels == self.in_channels): raise ValueError("number of input and output channels must be the same for a residual net.")
 			final = final + x
-		final = self.activation(final)
+		final = self.last_activation(final)
 
 		if self.prob_out:
 			scale = ConvLayer(self.out_channels, self.out_channels, ndim=self.ndim, ks=1, norm_type=None, act_cls=nn.Softplus)(x_rec)

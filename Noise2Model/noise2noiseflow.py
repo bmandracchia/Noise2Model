@@ -15,7 +15,7 @@ from .layers.conv2d1x1 import Conv2d1x1
 from .layers.affine_coupling import AffineCoupling, ShiftAndLogScale
 from .layers.signal_dependant import SignalDependant
 from .layers.gain import Gain
-# from Noise2Model.layers.utils import SdnModelScale
+from .layers.utils import SdnModelScale
 
 # %% ../nbs/03_noise2noiseflow.ipynb 7
 class NoiseFlow(nn.Module):

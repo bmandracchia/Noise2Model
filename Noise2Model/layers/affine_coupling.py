@@ -5,7 +5,6 @@ __all__ = ['AffineCoupling', 'ConditionalAffineCoupling', 'ConditionalAffine', '
 
 # %% ../../nbs/02_layers_affine_coupling.ipynb 3
 from fastai.vision.all import nn, torch
-import numpy as np
 from torch.nn import functional as F, init
 
 # from Noise2Model.utils import attributesFromDict

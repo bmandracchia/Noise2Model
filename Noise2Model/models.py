@@ -6,6 +6,7 @@ __all__ = ['DnCNN', 'SubNetConv', 'UNet']
 # %% ../nbs/01_models.ipynb 4
 from fastai.vision.all import ConvLayer, Lambda, MaxPool, NormType, nn, np
 from torch import cat as torch_cat
+import torch.nn.functional as F
 from .utils import attributesFromDict
 
 # %% ../nbs/01_models.ipynb 7
@@ -129,11 +130,12 @@ class UNet(nn.Module):
 				eps_scale=1e-3,
 				):
 		super().__init__()
-		last_activation = getattr(nn.functional, f"{activation.lower()}") if last_activation == None else getattr(nn.functional, f"{last_activation.lower()}") 
+		last_activation = getattr(F, f"{activation.lower()}") if last_activation == None else getattr(F, f"{last_activation.lower()}") 
 		activation = getattr(nn, f"{activation}")
 		attributesFromDict(locals())		# stores all the input parameters in self
 
-		self.net_recurse = _Net_recurse(depth, mult_chan, in_channels, kernel_size, ndim, n_conv_per_depth, activation, norm_type, dropout, pool, pool_size)
+		self.net_recurse = _Net_recurse(depth, mult_chan, in_channels, kernel_size, ndim, 
+                                  n_conv_per_depth, activation, norm_type, dropout, pool, pool_size)
 		self.conv_out = ConvLayer(mult_chan, out_channels, ndim=ndim, ks=kernel_size, norm_type=None, act_cls=None, padding=1)
 
 	def forward(self, x):

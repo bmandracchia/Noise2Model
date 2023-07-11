@@ -4,12 +4,7 @@ website:
       - index.ipynb
       - 00_core.ipynb
       - 01_models.ipynb
-      - 02_layers_affine_coupling.ipynb
-      - 02_layers_conv2d1x1.ipynb
-      - 02_layers_gain.ipynb
-      - 02_layers_neural_spline.ipynb
-      - 02_layers_signal_dependant.ipynb
-      - 03_noise2noiseflow.ipynb
       - 09_utils.ipynb
       - 91_demo_demo1.ipynb
       - 92_demo_demo2.ipynb
+      - 93_demo_demo3.ipynb

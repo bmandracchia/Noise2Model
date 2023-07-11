@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 # %% ../../nbs/02_layers_logit.ipynb 4
 class Logit(nn.Module):
-    def __init__(self, temperature=1, eps=1e-6, device='cpu', name='logit'):
+    def __init__(self, temperature=1, eps=1e-6, device='cuda', name='logit'):
         super(Logit, self).__init__()
         self.name = name
         self.eps = eps
@@ -39,7 +39,7 @@ class Logit(nn.Module):
 
 # %% ../../nbs/02_layers_logit.ipynb 5
 class Logit_v2(nn.Module): # here temeprature is a learnable parameter
-    def __init__(self, temperature=1, eps=1e-6, device='cpu', name='logit'):
+    def __init__(self, temperature=1, eps=1e-6, device='cuda', name='logit'):
         super(Logit, self).__init__()
         self.name = name
         self.eps = eps

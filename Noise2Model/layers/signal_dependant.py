@@ -37,7 +37,7 @@ class SignalDependant(nn.Module):
 
 # %% ../../nbs/02_layers_signal_dependant.ipynb 5
 class SignalDependantExp2(nn.Module):
-    def __init__(self, log_scale, gain_scale, param_inits=False, device='cpu', name='sdn'):
+    def __init__(self, log_scale, gain_scale, param_inits=False, device='cuda', name='sdn'):
         super(SignalDependantExp2, self).__init__()
         self.name = name
         self.param_inits = param_inits
@@ -80,7 +80,7 @@ class SignalDependantNS(nn.Module):
         tails="linear",
         tail_bound=1.0,
         name='sdn',
-        device='cpu',
+        device='cuda',
         min_bin_width=DEFAULT_MIN_BIN_WIDTH,
         min_bin_height=DEFAULT_MIN_BIN_HEIGHT,
         min_derivative=DEFAULT_MIN_DERIVATIVE,

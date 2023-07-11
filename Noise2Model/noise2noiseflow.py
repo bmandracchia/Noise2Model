@@ -157,7 +157,7 @@ class NoiseFlow(nn.Module):
 
         return logp, sample
 
-# %% ../nbs/03_noise2noiseflow.ipynb 9
+# %% ../nbs/03_noise2noiseflow.ipynb 11
 class Noise2NoiseFlow(nn.Module):
     def __init__(self, x_shape, arch, flow_permutation, param_inits, lu_decomp, denoiser_model='dncnn', dncnn_num_layers=9, lmbda=262144):
         super(Noise2NoiseFlow, self).__init__()

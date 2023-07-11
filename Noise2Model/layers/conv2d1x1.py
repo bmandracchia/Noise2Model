@@ -85,7 +85,7 @@ class Conv2d1x1(nn.Module):
         return self.forward(z, reverse=True)[0]
 
 class ConditionalConv2d1x1(nn.Module):
-    def __init__(self, num_channels, LU_decomposed=True, name='Conv2d1x1', device='cpu'):
+    def __init__(self, num_channels, LU_decomposed=True, name='Conv2d1x1', device='cuda'):
         super(ConditionalConv2d1x1, self).__init__()
         self.name = name
         w_shape = [num_channels, num_channels]

@@ -27,7 +27,7 @@ class NeuralSpline(nn.Module):
         tails="linear",
         tail_bound=1.0,
         name="neural_spline",
-        device='cpu'
+        device='cuda'
         ):
         super(NeuralSpline, self).__init__()
 
@@ -156,7 +156,7 @@ class ConditionalNeuralSpline(nn.Module):
         tails="linear",
         tail_bound=1.0,
         name="conditional_neural_spline",
-        device='cpu'
+        device='cuda'
         ):
         super(ConditionalNeuralSpline, self).__init__()
 
@@ -298,7 +298,7 @@ class ConditionalNeuralSpline(nn.Module):
         return outputs, logabsdet
 
 class TransformNet(nn.Module):
-    def __init__(self, x_shape, num_in, num_output, width=4, activation=nn.ReLU(), device='cpu'):
+    def __init__(self, x_shape, num_in, num_output, width=4, activation=nn.ReLU(), device='cuda'):
         super(TransformNet, self).__init__()
         self.width = width
         self.activation = activation

@@ -31,7 +31,7 @@ class Gain(nn.Module):
 
 # %% ../../nbs/02_layers_gain.ipynb 5
 class GainExp2(nn.Module):
-    def __init__(self, gain_scale, param_inits, device='cpu', name='gain'):
+    def __init__(self, gain_scale, param_inits, device='cuda', name='gain'):
         super(GainExp2, self).__init__()
         self.name = name
         self._gain_scale = gain_scale(param_inits, device=device, name='gain_layer_gain_scale')

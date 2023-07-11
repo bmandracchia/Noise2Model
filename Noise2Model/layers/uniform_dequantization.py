@@ -8,7 +8,7 @@ from fastai.vision.all import torch, nn
 
 # %% ../../nbs/02_layers_uniform_dequantization.ipynb 4
 class UniformDequantization(nn.Module):
-    def __init__(self, num_bits=8, device='cpu', name='uniform_dequantization'):
+    def __init__(self, num_bits=8, device='cuda', name='uniform_dequantization'):
         super(UniformDequantization, self).__init__()
         self.num_bits = num_bits
         self.quantization_bins = 2**num_bits

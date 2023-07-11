@@ -8,7 +8,7 @@ from fastai.vision.all import torch, nn
 
 # %% ../../nbs/02_layers_noise_extraction.ipynb 4
 class NoiseExtraction(nn.Module):
-    def __init__(self, device='cpu', name='noise_extraction'):
+    def __init__(self, device='cuda', name='noise_extraction'):
         super(NoiseExtraction, self).__init__()
         self.name = name
         self.device = device

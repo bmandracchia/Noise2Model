@@ -10,7 +10,7 @@ from ..utils import attributesFromDict
 
 # %% ../../nbs/02_layers_affine_coupling.ipynb 6
 class ShiftAndLogScale(nn.Module):
-    def __init__(self, num_in, num_out, width=4, ndim=2, shift_only=False, activation=nn.ReLU, device='cpu'):
+    def __init__(self, num_in, num_out, width=4, ndim=2, shift_only=False, activation=nn.ReLU, device='cuda'):
         super(ShiftAndLogScale, self).__init__()
         attributesFromDict(locals())
         self.scale = nn.Parameter(torch.full((1,), 1e-4, device=device))
@@ -93,7 +93,7 @@ class AffineCoupling(nn.Module):
 
 # %% ../../nbs/02_layers_affine_coupling.ipynb 10
 class ConditionalAffineCoupling(nn.Module):
-    def __init__(self, x_shape, shift_and_log_scale, encoder, name="conditional_coupling", device='cpu'):
+    def __init__(self, x_shape, shift_and_log_scale, encoder, name="conditional_coupling", device='cuda'):
         super(ConditionalAffineCoupling, self).__init__()
         self.x_shape = x_shape
         self.ic, self.i0, self.i1 = x_shape
@@ -154,7 +154,7 @@ class ConditionalAffineCoupling(nn.Module):
 
 # %% ../../nbs/02_layers_affine_coupling.ipynb 11
 class ConditionalAffine(nn.Module):
-    def __init__(self, x_shape, shift_and_log_scale, encoder, name="conditional_coupling", device='cpu', only_clean=False):
+    def __init__(self, x_shape, shift_and_log_scale, encoder, name="conditional_coupling", device='cuda', only_clean=False):
         super(ConditionalAffine, self).__init__()
         self.x_shape = x_shape
         self.ic, self.i0, self.i1 = x_shape

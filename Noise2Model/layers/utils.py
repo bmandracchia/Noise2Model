@@ -51,7 +51,7 @@ class SdnModelScale(nn.Module):
 
 # %% ../../nbs/02_layers_utils.ipynb 5
 class SdnModelLogScaleExp2(nn.Module):
-    def __init__(self, gain_scale, param_inits=False, name='sdn_scale', device='cpu'):
+    def __init__(self, gain_scale, param_inits=False, name='sdn_scale', device='cuda'):
         super(SdnModelLogScaleExp2, self).__init__()
         self.c_i = param_inits['c_i']
         self.beta1_i = param_inits['beta1_i']
@@ -80,7 +80,7 @@ class SdnModelLogScaleExp2(nn.Module):
 
 # %% ../../nbs/02_layers_utils.ipynb 6
 class GainScale(nn.Module):
-    def __init__(self, param_inits, name="gain_scale", device='cpu'):
+    def __init__(self, param_inits, name="gain_scale", device='cuda'):
         super(GainScale, self).__init__()
         self.c_i = param_inits['c_i']
         self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'

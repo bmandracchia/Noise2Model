@@ -11,7 +11,7 @@ from .utils import gaussian_diag #, batch_PSNR, weights_init_orthogonal #, weigh
 
 
 # %% ../nbs/02_noiseflow.ipynb 33
-from normflows.flows import GlowBlock
+from normflows.flows import GlowBlock, AffineConstFlow, CCAffineConst
 # from normflows.distributions.base import DiagGaussian
 # from Noise2Model.layers.signal_dependant import SignalDependant
 # from Noise2Model.layers.gain import Gain
@@ -35,25 +35,21 @@ class NoiseFlow(nn.Module):
                 print('|-AffineCoupling')
                 bijectors.append(
                     GlowBlock(
-                        channels=x_shape[1] * 1,
+                        channels=x_shape[1],
                         hidden_channels = 16,
                         split_mode='channel' if i == len(arch_lyrs) else 'checkerboard'
                     )
                 )
-            # elif lyr == 'sdn':
-            #     print('|-SignalDependant')
-            #     bijectors.append(
-            #         SignalDependant(
-            #             name='sdn_%d' % i,
-            #             scale=SdnModelScale,
-            #             param_inits=self.param_inits
-            #         )
-            #     )
-            # elif lyr == 'gain':
-            #     print('|-Gain')
-            #     bijectors.append(
-            #         Gain(name='gain_%d' % i)
-            #     )
+            elif lyr == 'sdn':
+                print('|-SignalDependant')
+                bijectors.append(
+                    CCAffineConst(x_shape, 1) # to be changed with custom layer
+                )
+            elif lyr == 'gain':
+                print('|-Gain')
+                bijectors.append(
+                    AffineConstFlow(x_shape[1:])
+                )
 
         return bijectors
 

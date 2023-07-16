@@ -5,22 +5,23 @@ __all__ = ['NoiseFlow']
 
 # %% ../nbs/02_noiseflow.ipynb 4
 from fastai.vision.all import nn, torch, np, Path, get_image_files, Image 
+import normflows as nf
 from .utils import attributesFromDict
 # from Noise2Model.models import DnCNN, UNet
 from .utils import gaussian_diag #, batch_PSNR, weights_init_orthogonal #, weights_init_kaiming
 
 
 # %% ../nbs/02_noiseflow.ipynb 33
-from normflows.flows import GlowBlock, AffineConstFlow, CCAffineConst
+from normflows.flows import GlowBlock, AffineConstFlow, Flow
 # from normflows.distributions.base import DiagGaussian
 # from Noise2Model.layers.signal_dependant import SignalDependant
 # from Noise2Model.layers.gain import Gain
 # from Noise2Model.layers.utils import SdnModelScale
 
-# %% ../nbs/02_noiseflow.ipynb 34
+# %% ../nbs/02_noiseflow.ipynb 38
 class NoiseFlow(nn.Module):
 
-    def __init__(self, x_shape, arch, param_inits, lu_decomp):
+    def __init__(self, x_shape, arch, param_inits=None, lu_decomp=0):
         super(NoiseFlow, self).__init__()
         attributesFromDict(locals( ))
         self.model = nn.ModuleList(self.noise_flow_arch(x_shape))
@@ -34,21 +35,21 @@ class NoiseFlow(nn.Module):
             if lyr == 'unc':
                 print('|-AffineCoupling')
                 bijectors.append(
-                    GlowBlock(
+                    Unconditional(
                         channels=x_shape[1],
                         hidden_channels = 16,
-                        split_mode='channel' if i == len(arch_lyrs) else 'checkerboard'
+                        split_mode='channel' if x_shape[1] != 1 else 'checkerboard'
                     )
                 )
             elif lyr == 'sdn':
                 print('|-SignalDependant')
                 bijectors.append(
-                    CCAffineConst(x_shape, 1) # to be changed with custom layer
+                    AffineSdn(x_shape[1:])
                 )
             elif lyr == 'gain':
                 print('|-Gain')
                 bijectors.append(
-                    AffineConstFlow(x_shape[1:])
+                    Gain(x_shape[1:])    # Gain and offset
                 )
 
         return bijectors
@@ -57,7 +58,7 @@ class NoiseFlow(nn.Module):
         z = x
         objective = torch.zeros(x.shape[0], dtype=torch.float32, device=x.device)
         for bijector in self.model:
-            z, log_abs_det_J_inv = bijector.forward(z, **kwargs)
+            z, log_abs_det_J_inv = bijector.forward(z, **kwargs) 
             objective += log_abs_det_J_inv
 
             if 'writer' in kwargs.keys():

@@ -149,7 +149,7 @@ class UNet(nn.Module):
 
         self.net_recurse = _Net_recurse(depth, mult_chan, in_channels, kernel_size, ndim,
                                         n_conv_per_depth, activation, norm_type, dropout, pool, pool_size)
-        self.conv_out = ConvLayer(mult_chan, out_channels, ndim=ndim,
+        self.conv_out = ConvLayer(mult_chan*in_channels, out_channels, ndim=ndim,
                                   ks=kernel_size, norm_type=None, act_cls=None, padding=1)
 
     def forward(self, x):

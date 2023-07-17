@@ -12,7 +12,7 @@ from .utils import gaussian_diag #, batch_PSNR, weights_init_orthogonal #, weigh
 
 
 # %% ../nbs/03_noiseflow.ipynb 6
-from . import Unconditional, Gain, AffineSdn
+from .layers import Unconditional, Gain, AffineSdn
 
 # %% ../nbs/03_noiseflow.ipynb 7
 class NoiseFlow(nn.Module):

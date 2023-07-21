@@ -17,7 +17,7 @@ from .layers import Unconditional, Gain, AffineSdn
 # %% ../nbs/03_noiseflow.ipynb 7
 class NoiseFlow(nn.Module):
 
-    def __init__(self, x_shape, arch, param_inits=None, lu_decomp=0):
+    def __init__(self, x_shape, arch):
         super(NoiseFlow, self).__init__()
         attributesFromDict(locals( ))
         self.model = nn.ModuleList(self.noise_flow_arch(x_shape))

@@ -8,40 +8,31 @@ from fastai.vision.all import nn, torch, np
 from .utils import attributesFromDict
 from .models import DnCNN, UNet
 from .utils import gaussian_diag, batch_PSNR, weights_init_orthogonal #, weights_init_kaiming
+from .noiseflow import NoiseFlow  
 
-
-# %% ../nbs/04_noise2noiseflow.ipynb 5
-# from Noise2Model.layers.conv2d1x1 import Conv2d1x1
-# from Noise2Model.layers.affine_coupling import AffineCoupling, ShiftAndLogScale
-# from Noise2Model.layers.signal_dependant import SignalDependant
-# from Noise2Model.layers.gain import Gain
-# from Noise2Model.layers.utils import SdnModelScale
 
 # %% ../nbs/04_noise2noiseflow.ipynb 7
 class Noise2NoiseFlow(nn.Module):
-    def __init__(self, x_shape, arch, flow_permutation, param_inits, lu_decomp, denoiser_model='unet', dncnn_num_layers=9, lmbda=262144):
+    def __init__(self, 
+                 x_shape, 
+                 arch, 
+                 denoiser=UNet(depth=3, in_channels=1, out_channels=1), 
+                 lmbda=262144):
         super(Noise2NoiseFlow, self).__init__()
+        attributesFromDict(locals( ))
 
-        self.noise_flow = NoiseFlow(x_shape, arch, flow_permutation, param_inits, lu_decomp)
-        if denoiser_model == 'dncnn':
-            self.denoiser = DnCNN(x_shape[0], dncnn_num_layers)
-            # TODO: self.dncnn should be named self.denoiser by definition, but I changed it here since i needed it to be backward compatible for loading previous models for sampling.
-            # self.denoiser.apply(weights_init_kaiming)
-            self.denoiser.apply(weights_init_orthogonal)
-        elif denoiser_model == 'unet':
-            self.denoiser = UNet(in_channels=4, out_channels=4)
+        self.noise_flow = NoiseFlow(x_shape, arch)
+        if denoiser._get_name()=='DnCNN': self.denoiser.apply(weights_init_orthogonal)
 
         self.denoiser_loss = nn.MSELoss(reduction='mean')
         self.lmbda = lmbda
 
     def denoise(self, noisy, clip=True):
         denoised = self.denoiser(noisy)
-        if clip:
-            denoised = torch.clamp(denoised, 0., 1.)
-
+        if clip: denoised = torch.clamp(denoised, 0., 1.)
         return denoised
 
-    def forward_u(self, noisy, **kwargs):
+    def forward(self, noisy, **kwargs):
         denoised = self.denoise(noisy)
         kwargs.update({'clean' : denoised})
         noise = noisy - denoised

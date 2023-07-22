@@ -16,12 +16,15 @@ class Noise2NoiseFlow(nn.Module):
     def __init__(self, 
                  x_shape, 
                  arch, 
-                 denoiser=UNet(depth=3, in_channels=1, out_channels=1), 
+                 denoiser=UNet(depth=3, in_channels=1, out_channels=1),
+                 #torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
                  lmbda=262144):
         super(Noise2NoiseFlow, self).__init__()
         attributesFromDict(locals( ))
 
-        self.noise_flow = NoiseFlow(x_shape, arch)
+        self.noise_flow = NoiseFlow(x_shape, arch)#.to(self.device)
+        # self.denoiser = self.denoiser.to(self.device)
+        
         if denoiser._get_name()=='DnCNN': self.denoiser.apply(weights_init_orthogonal)
 
         self.denoiser_loss = nn.MSELoss(reduction='mean')

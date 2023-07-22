@@ -17,7 +17,7 @@ from .layers import Unconditional, Gain, AffineSdn
 # %% ../nbs/03_noiseflow.ipynb 7
 class NoiseFlow(nn.Module):
 
-    def __init__(self, x_shape, arch):
+    def __init__(self, x_shape, arch, device='cuda'): # device may be removed
         super(NoiseFlow, self).__init__()
         attributesFromDict(locals( ))
         self.model = nn.ModuleList(self.noise_flow_arch(x_shape))
@@ -30,31 +30,32 @@ class NoiseFlow(nn.Module):
 
             if lyr == 'unc':
                 print('|-AffineCoupling')
+                print(self.device)
                 bijectors.append(
                     Unconditional(
                         channels=x_shape[1],
                         hidden_channels = 16,
                         split_mode='channel' if x_shape[1] != 1 else 'checkerboard'
-                    )
+                    )#.to(self.device)
                 )
             elif lyr == 'sdn':
                 print('|-SignalDependant')
                 bijectors.append(
-                    AffineSdn(x_shape[1:])
+                    AffineSdn(x_shape[1:])#.to(self.device)
                 )
             elif lyr == 'gain':
                 print('|-Gain')
                 bijectors.append(
-                    Gain(x_shape[1:])    # Gain and offset
+                    Gain(x_shape[1:])#.to(self.device)    # Gain and offset
                 )
 
         return bijectors
 
     def forward(self, x, **kwargs):
         z = x
-        objective = torch.zeros(x.shape[0], dtype=torch.float32, device=x.device)
+        objective = torch.zeros(x.shape[0], dtype=torch.float32, device=self.device)
         for bijector in self.model:
-            z, log_abs_det_J_inv = bijector.forward(z, **kwargs) 
+            z, log_abs_det_J_inv = bijector.forward(z, **kwargs)
             objective += log_abs_det_J_inv
 
             if 'writer' in kwargs.keys():

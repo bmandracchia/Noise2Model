@@ -60,7 +60,7 @@ class NoiseFlow(nn.Module):
 
             if 'writer' in kwargs.keys():
                 kwargs['writer'].add_scalar('model/' + bijector.name, torch.mean(log_abs_det_J_inv), kwargs['step'])
-        return z, objective
+        return z#, objective
 
     def _loss(self, x, **kwargs):
         z, objective = self.forward(x, **kwargs)

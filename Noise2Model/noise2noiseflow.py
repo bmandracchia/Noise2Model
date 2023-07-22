@@ -40,9 +40,10 @@ class Noise2NoiseFlow(nn.Module):
         kwargs.update({'clean' : denoised})
         noise = noisy - denoised
 
-        z, objective = self.noise_flow.forward(noise, **kwargs)
+        z = self.noise_flow.forward(noise, **kwargs)
+        # z, objective = self.noise_flow.forward(noise, **kwargs)
 
-        return z, objective, denoised
+        return z#, objective, denoised
 
     def symmetric_loss(self, noisy1, noisy2, **kwargs):
         denoised1 = self.denoise(noisy1)

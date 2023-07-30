@@ -51,6 +51,17 @@ class NoiseFlow(nn.Module):
 
         return bijectors
 
+    def _forward(self, x, **kwargs):
+        z = x
+        objective = torch.zeros(x.shape[0], dtype=torch.float32, device=self.device)
+        for bijector in self.model:
+            z, log_abs_det_J_inv = bijector.forward(z, **kwargs)
+            objective += log_abs_det_J_inv
+
+            if 'writer' in kwargs.keys():
+                kwargs['writer'].add_scalar('model/' + bijector.name, torch.mean(log_abs_det_J_inv), kwargs['step'])
+        return z, objective
+    
     def forward(self, x, **kwargs):
         z = x
         objective = torch.zeros(x.shape[0], dtype=torch.float32, device=self.device)
@@ -63,7 +74,7 @@ class NoiseFlow(nn.Module):
         return z#, objective
 
     def _loss(self, x, **kwargs):
-        z, objective = self.forward(x, **kwargs)
+        z, objective = self._forward(x, **kwargs)
         # base measure
         logp, _ = self.prior("prior", x)
 

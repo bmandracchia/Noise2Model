@@ -30,7 +30,6 @@ class NoiseFlow(nn.Module):
 
             if lyr == 'unc':
                 print('|-AffineCoupling')
-                print(self.device)
                 bijectors.append(
                     Unconditional(
                         channels=x_shape[1],

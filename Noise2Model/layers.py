@@ -31,7 +31,10 @@ class AffineSdn(Flow):
         self.affine = AffineConstFlow(self.shape)
 
     def forward(self, z, **kwargs):
-        y = kwargs['clean']
+        if 'clean' in kwargs:
+            y = kwargs['clean']
+        else:
+            y = z
         y_, log_det = self.affine(y)
         return z * torch.sqrt(y_), log_det
 
@@ -55,10 +58,12 @@ class Unconditional(Flow):
         self.glow = GlowBlock(channels=self.channels, hidden_channels = self.hidden_channels, split_mode=self.split_mode)
 
     def forward(self, z, **kwargs):
-        return self.glow(z)
+        z, log_det_tot = self.glow(z)
+        return z, log_det_tot
 
     def inverse(self, z, **kwargs):
-        return self.glow.inverse(z)
+        z, log_det_tot = self.glow.inverse(z)
+        
 
 # %% ../nbs/02_layers.ipynb 15
 class Gain(Flow):

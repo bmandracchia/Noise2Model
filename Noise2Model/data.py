@@ -26,7 +26,7 @@ def get_FMD_img_paths(base_path):
     return file_paths
 
 
-# %% ../nbs/01_data.ipynb 8
+# %% ../nbs/01_data.ipynb 9
 def convert_setup_code(model_name):
     models = ['100x', '060x']
     for idx, model in enumerate(models):
@@ -34,7 +34,7 @@ def convert_setup_code(model_name):
     assert False, "Invalid setup code."
 
 
-# %% ../nbs/01_data.ipynb 10
+# %% ../nbs/01_data.ipynb 11
 def parse_dir_name(dir_name):
     tokens = dir_name.split('_')
     return {
@@ -47,7 +47,7 @@ def parse_dir_name(dir_name):
         'photon-flux':int('0100') # photons/nm/ms
     }
 
-# %% ../nbs/01_data.ipynb 13
+# %% ../nbs/01_data.ipynb 14
 def crop(img, size, overlap):
     crops = list()
     img = img.transpose(2,0,1)
@@ -66,17 +66,17 @@ def crop(img, size, overlap):
     i=0
     return crops
 
-# %% ../nbs/01_data.ipynb 14
+# %% ../nbs/01_data.ipynb 15
 #| export
 
 
 
-# %% ../nbs/01_data.ipynb 16
-def preprocessing(data_path='./data/Confocal_BPAE_B',
+# %% ../nbs/01_data.ipynb 17
+def preprocessing(data_path='../_data/Confocal_BPAE_B',
                     patch_size = 96,
                     overlap = 8,
                     mode = 'NOISE_GEN', # ['NOISE_GEN', 'DENOISER', 'ALL']
-                    output_base_path = './data/HDF5_confocal_s96_o08',
+                    output_base_path = '../_data/HDF5_confocal_s96_o08',
                     ):
     
     TRAIN_NOISEGEN_INDICES = [1] #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
@@ -126,22 +126,22 @@ def preprocessing(data_path='./data/Confocal_BPAE_B',
             for key in config:
                 hdf5_config.attrs[key] = config[key]
 
-# %% ../nbs/01_data.ipynb 17
-#| export
-
-
-
-# %% ../nbs/01_data.ipynb 18
-#| export
-
-
-
 # %% ../nbs/01_data.ipynb 19
 #| export
 
 
 
+# %% ../nbs/01_data.ipynb 20
+#| export
+
+
+
 # %% ../nbs/01_data.ipynb 21
+#| export
+
+
+
+# %% ../nbs/01_data.ipynb 23
 def find_support_scene(img_paths, current_path):
     random.shuffle(img_paths) # shuffling
     current_config = parse_dir_name(current_path['GT'].split('/')[-2])
@@ -153,7 +153,7 @@ def find_support_scene(img_paths, current_path):
             return img_path
     assert False, "There is no matching scene."
 
-# %% ../nbs/01_data.ipynb 22
+# %% ../nbs/01_data.ipynb 24
 def load_and_display_hdf5_image(file_path, dataset_name='clean'):
     with h5py.File(file_path, 'r') as file:
         image_data = file[dataset_name + '/20'][:] 

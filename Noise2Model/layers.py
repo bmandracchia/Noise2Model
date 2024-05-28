@@ -5,7 +5,7 @@ __all__ = ['flow_layer_class_dict', 'regist_layer', 'UniformDequantization', 'Co
            'SignalDependentConditionalLinear', 'StructureAwareConditionalLinearLayer', 'PointwiseConvs', 'SpatialConvs',
            'ResidualBlock', 'ResidualNet']
 
-# %% ../nbs/02_layers.ipynb 3
+# %% ../nbs/02_layers.ipynb 4
 import os
 from importlib import import_module
 
@@ -14,7 +14,7 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
-# %% ../nbs/02_layers.ipynb 4
+# %% ../nbs/02_layers.ipynb 5
 flow_layer_class_dict = {}
 
 def regist_layer(layer_class):
@@ -25,23 +25,24 @@ def regist_layer(layer_class):
 
 
 
-# %% ../nbs/02_layers.ipynb 9
+# %% ../nbs/02_layers.ipynb 10
 @regist_layer
 class UniformDequantization(nn.Module):
     def __init__(self, alpha=1e-5, num_bits=8, device='cpu', name='uniform_dequantization'):
         """
         Uniform dequantization layer for flows.
         
-        Inputs:
-            alpha - small constant used to scale the input to avoid very small and large values.
-            num_bits - Number of bits used for quantization.
-            device - Device to run computations on (default: 'cpu').
-            name - Name of the module (default: 'uniform_dequantization').
+        Args:
+            alpha (float): Small constant used to scale the input to avoid boundary values (default: 1e-5).
+            num_bits (int): Number of bits used for quantization (default: 8).
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'uniform_dequantization').
         """
         super(UniformDequantization, self).__init__()
         self.alpha = alpha
         self.num_bits = num_bits
         self.quantization_bins = 2 ** num_bits
+        # Precompute the log-determinant of the Jacobian per dimension
         self.register_buffer(
             'ldj_per_dim',
             - num_bits * torch.log(torch.tensor(2.0, device=device, dtype=torch.float))
@@ -49,46 +50,108 @@ class UniformDequantization(nn.Module):
         self.name = name
 
     def _ldj(self, shape):
+        """
+        Computes the log-determinant of the Jacobian for a given shape.
+
+        Args:
+            shape (torch.Size): Shape of the input tensor.
+
+        Returns:
+            torch.Tensor: Log-determinant of the Jacobian repeated for the batch size.
+        """
         batch_size = shape[0]
         num_dims = shape[1:].numel()
         ldj = self.ldj_per_dim * num_dims
         return ldj.repeat(batch_size)
 
     def _inverse(self, z, **kwargs):
+        """
+        Applies the inverse dequantization transformation to the input.
+
+        Args:
+            z (torch.Tensor): Input tensor to transform.
+
+        Returns:
+            torch.Tensor: Dequantized tensor.
+        """
+        # Apply the inverse sigmoid transformation to z
         z = self._sigmoid_inverse(z)
+        # Quantize the values to integer bins
         z = (self.quantization_bins * z).floor().clamp(min=0, max=self.quantization_bins - 1)
         return z
 
     def _forward_and_log_det_jacobian(self, x, **kwargs):
-        z, ldj = self._dequant(x)
-        z, ldj = self._sigmoid(z, ldj)
+        """
+        Applies the forward dequantization transformation and computes the log-determinant of the Jacobian.
+
+        Args:
+            x (torch.Tensor): Input tensor to transform.
+
+        Returns:
+            tuple: Transformed tensor and the log-determinant of the Jacobian.
+        """
+        z, ldj = self._dequant(x.to(torch.float32))
+        # Uncomment the next line if an additional sigmoid transformation is needed
+        # z, ldj = self._sigmoid(z, ldj)
         return z, ldj
     
     def _sigmoid(self, z, ldj):
-        # Applies an invertible sigmoid transformation
+        """
+        Applies an invertible sigmoid transformation to the input.
+
+        Args:
+            z (torch.Tensor): Input tensor to transform.
+            ldj (torch.Tensor): Log-determinant of the Jacobian.
+
+        Returns:
+            tuple: Transformed tensor and updated log-determinant of the Jacobian.
+        """
+        # Update ldj with the sigmoid transformation's contribution
         ldj += (-z - 2 * F.softplus(-z)).sum(dim=[1, 2, 3])
         z = torch.sigmoid(z)
-        # Reversing scaling for numerical stability
+        # Adjust the log-determinant for the alpha scaling
         ldj -= torch.log(torch.tensor(1.0 - self.alpha, device=z.device, dtype=z.dtype)) * z.flatten(1).shape[1]
+        # Scale z to avoid boundaries
         z = (z - 0.5 * self.alpha) / (1 - self.alpha)
         return z, ldj
     
     def _sigmoid_inverse(self, z):
-        # Inverse sigmoid transformation
-        z = z * (1 - self.alpha) + 0.5 * self.alpha  # Scale to prevent boundaries 0 and 1
+        """
+        Applies the inverse of the sigmoid transformation to the input.
+
+        Args:
+            z (torch.Tensor): Input tensor to transform.
+
+        Returns:
+            torch.Tensor: Transformed tensor.
+        """
+        # Scale z to avoid boundaries 0 and 1
+        z = z * (1 - self.alpha) + 0.5 * self.alpha
+        # Apply the logit function (inverse sigmoid)
         z = torch.log(z) - torch.log(1 - z)
         return z
     
     def _dequant(self, x):
-        # Transform discrete values to continuous volumes
+        """
+        Transforms discrete values to continuous volumes for dequantization.
+
+        Args:
+            x (torch.Tensor): Input tensor with discrete values.
+
+        Returns:
+            tuple: Dequantized tensor and the log-determinant of the Jacobian.
+        """
+        # Add uniform noise to dequantize
         u = torch.rand(x.shape, device=x.device, dtype=x.dtype)
         z = (x + u) / self.quantization_bins
+        # Compute the log-determinant of the Jacobian
         ldj = self._ldj(z.shape)
         return z, ldj
 
 
 
-# %% ../nbs/02_layers.ipynb 11
+
+# %% ../nbs/02_layers.ipynb 13
 # class VariationalDequantization(UniformDequantization):
 
 #     def __init__(self, var_flows, alpha=1e-5, num_bits=8, device='cpu', name='variational_dequantization'):
@@ -137,108 +200,281 @@ class UniformDequantization(nn.Module):
 #     #     return z, ldj
 
 
-# %% ../nbs/02_layers.ipynb 13
+# %% ../nbs/02_layers.ipynb 15
 @regist_layer
 class ConditionalLinear(nn.Module):
+    """
+    Conditional linear transformation module.
+
+    Applies different scales and biases based on average pixel size and camera values provided
+    in the input. Supports both forward and inverse transformations.
+
+    Attributes:
+        name (str): Name of the transformation.
+        pixel_size (torch.Tensor): Predefined set of pixel sizes.
+        cam_vals (torch.Tensor): Predefined set of camera values.
+        log_scale (torch.nn.Parameter): Learnable log-scale parameters.
+        bias (torch.nn.Parameter): Learnable bias parameters.
+
+    Methods:
+        _inverse(z, **kwargs):
+            Performs the inverse transformation based on the input 'z' and conditionals.
+
+        _forward_and_log_det_jacobian(x, **kwargs):
+            Performs the forward transformation and computes the log determinant of the Jacobian.
+    """
+
     def __init__(self, device='cpu', name='linear_transformation'):
+        """
+        Initializes the ConditionalLinear module.
+
+        Args:
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'linear_transformation').
+        """
         super(ConditionalLinear, self).__init__()
         self.name = name
 
-        self.iso_vals = torch.tensor([100, 400, 800, 1600, 3200], dtype=torch.float32, device=device)
+        # Define predefined sets of pixel sizes and camera values
+        self.pixel_size = torch.tensor([60, 90, 100, 160, 320], dtype=torch.float32, device=device)
         self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
 
+        # Learnable parameters
         self.log_scale = nn.Parameter(torch.zeros(25), requires_grad=True)
         self.bias = nn.Parameter(torch.zeros(25), requires_grad=True)
 
     def _inverse(self, z, **kwargs):
-        gain_one_hot = self.iso_vals == torch.mean(kwargs['iso'], dim=[1, 2, 3]).unsqueeze(1)
-        iso = gain_one_hot.nonzero()[:, 1]
+        """
+        Performs the inverse transformation based on the input 'z' and conditionals.
+
+        Args:
+            z (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+            **kwargs: Additional keyword arguments containing 'pixel' and 'cam' tensors.
+
+        Returns:
+            torch.Tensor: Output tensor after applying the inverse transformation.
+        """
+        # Compute one-hot encoded pixel indices based on the mean of 'pixel' in kwargs
+        gain_one_hot = self.pixel_size == torch.mean(kwargs['pixel'], dim=[1, 2, 3]).unsqueeze(1)
+        pixel = gain_one_hot.nonzero()[:, 1]
+
+        # Compute one-hot encoded camera indices based on the mean of 'cam' in kwargs
         cam_one_hot = self.cam_vals == torch.mean(kwargs['cam'], dim=[1, 2, 3]).unsqueeze(1)
         cam = cam_one_hot.nonzero()[:, 1]
-        iso_cam = iso * 5 + cam
-        iso_cam = torch.arange(0, 25).cuda() == iso_cam.unsqueeze(1)
 
+        # Combine pixel and camera indices to get iso_cam indices
+        iso_cam = pixel * 5 + cam
+        iso_cam = torch.arange(0, 25).to(z.device) == iso_cam.unsqueeze(1)
+
+        # Select corresponding log_scale and bias values based on iso_cam indices
         log_scale = self.log_scale.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
         bias = self.bias.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
 
+        # Compute the inverse transformation
         x = (z - bias.reshape((-1, 1, 1, 1))) / torch.exp(log_scale.reshape((-1, 1, 1, 1)))
         return x
 
     def _forward_and_log_det_jacobian(self, x, **kwargs):
-        gain_one_hot = self.iso_vals == torch.mean(kwargs['iso'], dim=[1, 2, 3]).unsqueeze(1)
-        iso = gain_one_hot.nonzero()[:, 1]
+        """
+        Performs the forward transformation and computes the log determinant of the Jacobian.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, height, width).
+            **kwargs: Additional keyword arguments containing 'pixel' and 'cam' tensors.
+
+        Returns:
+            torch.Tensor: Output tensor after applying the forward transformation.
+            torch.Tensor: Log determinant of the Jacobian.
+        """
+        # Compute one-hot encoded pixel indices based on the mean of 'pixel' in kwargs
+        gain_one_hot = self.pixel_size == torch.mean(kwargs['pixel'], dim=[1, 2, 3]).unsqueeze(1)
+        pixel = gain_one_hot.nonzero()[:, 1]
+
+        # Compute one-hot encoded camera indices based on the mean of 'cam' in kwargs
         cam_one_hot = self.cam_vals == torch.mean(kwargs['cam'], dim=[1, 2, 3]).unsqueeze(1)
         cam = cam_one_hot.nonzero()[:, 1]
-        iso_cam = iso * 5 + cam
-        iso_cam = torch.arange(0, 25).cuda() == iso_cam.unsqueeze(1)
 
+        # Combine pixel and camera indices to get iso_cam indices
+        iso_cam = pixel * 5 + cam
+        iso_cam = torch.arange(0, 25).to(x.device) == iso_cam.unsqueeze(1)
+
+        # Select corresponding log_scale and bias values based on iso_cam indices
         log_scale = self.log_scale.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
         bias = self.bias.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
-        
+
+        # Compute the forward transformation
         z = x * torch.exp(log_scale.reshape((-1, 1, 1, 1))) + bias.reshape((-1, 1, 1, 1))
+
+        # Compute the log determinant of the Jacobian
         log_abs_det_J_inv = log_scale * np.prod(x.shape[1:])
 
         return z, log_abs_det_J_inv
 
-# %% ../nbs/02_layers.ipynb 15
+
+
+# %% ../nbs/02_layers.ipynb 19
 @regist_layer
 class ConditionalLinearExp2(nn.Module):
-    def __init__(self, in_ch=3, device='cpu', name='linear_transformation_exp2'):
+    """
+    Conditional linear transformation layer for flows, conditioned on specific ISO levels and setup codes.
+    
+    This module applies a linear transformation to the input tensor, where the transformation parameters
+    (log scale and bias) are conditioned based on the pixel size and setup code provided as input. 
+    The module supports both forward and inverse transformations.
+
+    Attributes:
+        name (str): Name of the module.
+        device (str): Device to run computations on.
+        pixel_size (tensor): pixel size used for conditioning.
+        cam_vals (tensor): Predefined setup codes used for conditioning.
+        log_scale (nn.Parameter): Learnable log scale parameters for the transformation.
+        bias (nn.Parameter): Learnable bias parameters for the transformation.
+
+    Methods:
+        _inverse(z, **kwargs):
+            Applies the inverse transformation to the input tensor z.
+        
+        _forward_and_log_det_jacobian(x, **kwargs):
+            Applies the forward transformation to the input tensor x and computes the log determinant
+            of the Jacobian of the transformation.
+    """
+    def __init__(self, in_ch=1, device='cpu', name='linear_transformation_exp2'):
+        """
+        Initializes the ConditionalLinearExp2 module with specified input channels, device, and name.
+
+        Args:
+            in_ch (int): Number of input channels. Default is 1.
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'linear_transformation_exp2').
+        """
         super(ConditionalLinearExp2, self).__init__()
         self.name = name
         self.device = device 
 
-        self.iso_vals = torch.tensor([100, 400, 800, 1600, 3200], dtype=torch.float32, device=device)
+        # camera values used for conditioning the transformation
+        self.pixel_size = torch.tensor([60, 90, 100, 160, 320], dtype=torch.float32, device=device)
         self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
 
+        # Parameters for the linear transformation, conditioned on camera values
         self.log_scale = nn.Parameter(torch.zeros(25, in_ch), requires_grad=True)
         self.bias = nn.Parameter(torch.zeros(25, in_ch), requires_grad=True)
 
     def _inverse(self, z, **kwargs):
-        b,_,_,_ = z.shape
+        """
+        Applies the inverse transformation to the input tensor z.
+        
+        Args:
+            z (tensor): Input tensor to be inversely transformed.
+            kwargs: Additional keyword arguments containing 'ISO-level' and 'setup-code' for conditioning.
+        
+        Returns:
+            tensor: The inversely transformed tensor.
+        """
+        b, _, _, _ = z.shape
 
+        # Determine ISO index based on 'pixel-size' from kwargs
         iso = torch.zeros([b], device=self.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.iso_vals):
-            iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
+        for iso_idx, iso_val in enumerate(self.pixel_size):
+            iso += torch.where(kwargs['pixel-size'] == iso_val, iso_idx, 0.0)
 
+        # Determine camera index based on 'ssetup-code' from kwargs
         cam = torch.zeros([b], device=self.device, dtype=torch.float32)
         for cam_idx, cam_val in enumerate(self.cam_vals):
-            cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
+            cam += torch.where(kwargs['setup-code'] == cam_val, cam_idx, 0.0)
 
-        iso_cam = iso * self.iso_vals.shape[0] + cam
-        iso_cam = torch.arange(0, self.iso_vals.shape[0] * self.cam_vals.shape[0]).cuda() == iso_cam.unsqueeze(1)
+        # Combine pixel and camera indices to get a unique index for each combination
+        iso_cam = iso * self.pixel_size.shape[0] + cam
+        iso_cam = torch.arange(0, self.pixel_size.shape[0] * self.cam_vals.shape[0]).to(device) == iso_cam.unsqueeze(1)
 
+        # Select log scale and bias parameters based on the unique index
         log_scale = self.log_scale.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
         bias = self.bias.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
 
+        # Apply the inverse transformation
         x = (z - bias.reshape((-1, z.shape[1], 1, 1))) / torch.exp(log_scale.reshape((-1, z.shape[1], 1, 1)))
         return x
 
     def _forward_and_log_det_jacobian(self, x, **kwargs):
-        b,_,_,_ = x.shape
+        """
+        Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
+        
+        Args:
+            x (tensor): Input tensor to be transformed.
+            kwargs: Additional keyword arguments containing 'ISO-level' and 'setup-code' for conditioning.
+        
+        Returns:
+            tensor: The transformed tensor.
+            tensor: The log determinant of the Jacobian of the transformation.
+        """
+        b, _, _, _ = x.shape
 
+        # Determine ISO index based on 'ISO-level' from kwargs
         iso = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.iso_vals):
-            iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
+        for iso_idx, iso_val in enumerate(self.pixel_size):
+            iso += torch.where(kwargs['pixel-size'] == iso_val, iso_idx, 0.0)
 
+        # Determine camera index based on 'setup-code' from kwargs
         cam = torch.zeros([b], device=x.device, dtype=torch.float32)
         for cam_idx, cam_val in enumerate(self.cam_vals):
-            cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
+            cam += torch.where(kwargs['setup-code'] == cam_val, cam_idx, 0.0)
 
-        iso_cam = iso * self.iso_vals.shape[0] + cam
-        iso_cam = torch.arange(0, self.iso_vals.shape[0] * self.cam_vals.shape[0]).cuda() == iso_cam.unsqueeze(1)
+        # Combine pixel and camera indices to get a unique index for each combination
+        iso_cam = iso * self.pixel_size.shape[0] + cam
+        iso_cam = torch.arange(0, self.pixel_size.shape[0] * self.cam_vals.shape[0]).to(device) == iso_cam.unsqueeze(1)
 
+        # Select log scale and bias parameters based on the unique index
         log_scale = self.log_scale.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
         bias = self.bias.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
+
+        # Apply the forward transformation
         z = x * torch.exp(log_scale.reshape((-1, x.shape[1], 1, 1))) + bias.reshape((-1, x.shape[1], 1, 1))
         log_abs_det_J_inv = torch.sum(log_scale * np.prod(x.shape[2:]), dim=1)
 
         return z, log_abs_det_J_inv
 
-# %% ../nbs/02_layers.ipynb 17
+
+# %% ../nbs/02_layers.ipynb 23
 @regist_layer
 class SignalDependentConditionalLinear(nn.Module):
-    def __init__(self, meta_encoder, scale_and_bias, in_ch=3, device='cpu', name='signal_dependent_condition_linear'):
+    """
+    Signal-dependent conditional linear transformation layer for flows.
+    
+    This module applies a linear transformation to the input tensor, where the transformation parameters
+    (log scale and bias) are conditioned on ISO levels and smartphone codes provided as input features.
+    The conditioning is performed using embeddings generated from meta encoders and scale-and-bias modules.
+
+    Attributes:
+        name (str): Name of the module.
+        device (str): Device to run computations on.
+        in_ch (int): Number of input channels.
+        iso_vals (tensor): Predefined ISO levels used for conditioning.
+        cam_vals (tensor): Predefined smartphone codes used for conditioning.
+        encode_ch (int): Number of channels in the embeddings generated by the meta encoder.
+        meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs.
+        scale_and_bias (nn.Module): Module to compute scale and bias parameters based on embeddings and input features.
+
+    Methods:
+        _get_embeddings(x, **kwargs):
+            Generates embeddings from ISO-level and smartphone-code inputs and concatenates them with additional features.
+
+        _inverse(z, **kwargs):
+            Applies the inverse transformation to the input tensor z.
+
+        _forward_and_log_det_jacobian(x, **kwargs):
+            Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
+    """
+    def __init__(self, meta_encoder, scale_and_bias, in_ch=1, device='cpu', name='signal_dependent_condition_linear'):
+        """
+        Initializes the SignalDependentConditionalLinear module with specified meta encoder, scale-and-bias module,
+        input channels, device, and name.
+
+        Args:
+            meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs.
+            scale_and_bias (nn.Module): Module to compute scale and bias parameters based on embeddings and input features.
+            in_ch (int): Number of input channels. Default is 1.
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'signal_dependent_condition_linear').
+        """
         super(SignalDependentConditionalLinear, self).__init__()
         self.name = name
         self.device = device 
@@ -251,8 +487,19 @@ class SignalDependentConditionalLinear(nn.Module):
         self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2) # scale, bias per channels
 
     def _get_embeddings(self, x, **kwargs):
-        b,_,_,_ = x.shape
+        """
+        Generates embeddings from ISO-level and smartphone-code inputs and concatenates them with additional features.
 
+        Args:
+            x (tensor): Input tensor.
+            kwargs: Additional keyword arguments containing 'ISO-level', 'smartphone-code', and 'clean'.
+
+        Returns:
+            tensor: Embeddings concatenated with additional features.
+        """
+        b, _, _, _ = x.shape
+
+        # Compute ISO and camera indices based on 'ISO-level' and 'smartphone-code'
         iso = torch.zeros([b], device=x.device, dtype=torch.float32)
         for iso_idx, iso_val in enumerate(self.iso_vals):
             iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
@@ -261,52 +508,125 @@ class SignalDependentConditionalLinear(nn.Module):
         for cam_idx, cam_val in enumerate(self.cam_vals):
             cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
 
+        # One-hot encode ISO and camera indices
         iso_one_hot = F.one_hot(iso.to(torch.int64), num_classes=self.iso_vals.shape[0]).to(torch.float32)
         cam_one_hot = F.one_hot(cam.to(torch.int64), num_classes=self.cam_vals.shape[0]).to(torch.float32)
 
-        embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1)) # [b, 10] -> [b,encode_ch]
+        # Generate embeddings using the meta encoder
+        embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1))
         embedding = embedding.reshape((-1, self.encode_ch, 1, 1))
-        embedding = torch.repeat_interleave(embedding, x.shape[-2], dim=-2)# [b, encode_ch, 1, 1] -> [b, encode_ch, h, 1]
-        embedding = torch.repeat_interleave(embedding, x.shape[-1], dim=-1)# [b, encode_ch, h, 1] -> [b, encode_ch, h, w]
+        embedding = torch.repeat_interleave(embedding, x.shape[-2], dim=-2)
+        embedding = torch.repeat_interleave(embedding, x.shape[-1], dim=-1)
 
-        embedding = torch.cat((embedding, kwargs['clean']), dim=1) # [b, encode_ch, h, w], [b, c, h, w] -> [b, c+encode_ch, h, w]
+        # Concatenate embeddings with additional features
+        embedding = torch.cat((embedding, kwargs['clean']), dim=1)
 
+        # Compute scale and bias parameters
         embedding = self.scale_and_bias(embedding)
         return embedding
     
     def _inverse(self, z, **kwargs):
+        """
+        Applies the inverse transformation to the input tensor z.
+
+        Args:
+            z (tensor): Input tensor to be inversely transformed.
+            kwargs: Additional keyword arguments containing 'ISO-level', 'smartphone-code', and 'clean'.
+
+        Returns:
+            tensor: The inversely transformed tensor.
+        """
         embedding = self._get_embeddings(z, **kwargs)
 
-        log_scale = embedding[:,:self.in_ch, ...]
-        bias = embedding[:,self.in_ch:, ...]
-        z = (z - bias)/torch.exp(log_scale)
+        log_scale = embedding[:, :self.in_ch, ...]
+        bias = embedding[:, self.in_ch:, ...]
+
+        z = (z - bias) / torch.exp(log_scale)
         return z
 
     def _forward_and_log_det_jacobian(self, x, **kwargs):
+        """
+        Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
+
+        Args:
+            x (tensor): Input tensor to be transformed.
+            kwargs: Additional keyword arguments containing 'ISO-level', 'smartphone-code', and 'clean'.
+
+        Returns:
+            tensor: The transformed tensor.
+            tensor: The log determinant of the Jacobian of the transformation.
+        """
         embedding = self._get_embeddings(x, **kwargs)
 
-        log_scale = embedding[:,:self.in_ch, ...]
-        bias = embedding[:,self.in_ch:, ...]
+        log_scale = embedding[:, :self.in_ch, ...]
+        bias = embedding[:, self.in_ch:, ...]
         
-        z = torch.exp(log_scale)*x + bias
-        log_abs_det_J_inv = torch.sum(log_scale, dim=[1,2,3])
+        z = torch.exp(log_scale) * x + bias
+        log_abs_det_J_inv = torch.sum(log_scale, dim=[1, 2, 3])
         return z, log_abs_det_J_inv
 
-# %% ../nbs/02_layers.ipynb 19
+
+# %% ../nbs/02_layers.ipynb 25
 @regist_layer
 class StructureAwareConditionalLinearLayer(nn.Module):
-    def __init__(self, meta_encoder, structure_encoder, in_ch=3, device='cpu', name='signal_dependent_condition_linear'):
+    """
+    Structure-aware conditional linear transformation layer for flows.
+    
+    This module applies a linear transformation to the input tensor, where the transformation parameters
+    (log scale and bias) are conditioned on ISO levels and smartphone codes provided as input features.
+    The conditioning involves both meta encoding and structure encoding of input features.
+
+    Attributes:
+        in_ch (int): Number of input channels.
+        iso_vals (tensor): Predefined ISO levels used for conditioning.
+        cam_vals (tensor): Predefined smartphone codes used for conditioning.
+        meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs.
+        structure_encoder (nn.Module): Structure encoder module to generate embeddings from input features.
+
+    Methods:
+        _get_embeddings(x, **kwargs):
+            Generates embeddings from ISO-level and smartphone-code inputs and combines them using structure encoding.
+
+        _inverse(z, **kwargs):
+            Applies the inverse transformation to the input tensor z.
+
+        _forward_and_log_det_jacobian(x, **kwargs):
+            Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
+    """
+    def __init__(self, meta_encoder, structure_encoder, in_ch=3, device='cpu', name='structure_aware_condition_linear'):
+        """
+        Initializes the StructureAwareConditionalLinearLayer module with specified meta encoder, structure encoder,
+        input channels, device, and name.
+
+        Args:
+            meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs.
+            structure_encoder (nn.Module): Structure encoder module to generate embeddings from input features.
+            in_ch (int): Number of input channels. Default is 3.
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'structure_aware_condition_linear').
+        """
         super(StructureAwareConditionalLinearLayer, self).__init__()
         self.in_ch = in_ch
         self.iso_vals = torch.tensor([100, 400, 800, 1600, 3200], dtype=torch.float32, device=device)
         self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
 
-        self.meta_encoder = meta_encoder(10, in_ch*2)
-        self.structure_encoder = structure_encoder(in_ch, in_ch*2)
+        self.meta_encoder = meta_encoder(10, in_ch * 2)
+        self.structure_encoder = structure_encoder(in_ch, in_ch * 2)
 
     def _get_embeddings(self, x, **kwargs):
-        b,_,_,_ = x.shape
+        """
+        Generates embeddings from ISO-level and smartphone-code inputs and combines them using structure encoding.
 
+        Args:
+            x (tensor): Input tensor.
+            kwargs: Additional keyword arguments containing 'ISO-level', 'smartphone-code', and 'clean'.
+
+        Returns:
+            tensor: Combined embeddings from meta and structure encodings.
+        """
+        b, _, _, _ = x.shape
+
+        # Compute ISO and camera indices based on 'ISO-level' and 'smartphone-code'
         iso = torch.zeros([b], device=x.device, dtype=torch.float32)
         for iso_idx, iso_val in enumerate(self.iso_vals):
             iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
@@ -315,39 +635,92 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         for cam_idx, cam_val in enumerate(self.cam_vals):
             cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
 
+        # One-hot encode ISO and camera indices
         iso_one_hot = F.one_hot(iso.to(torch.int64), num_classes=self.iso_vals.shape[0]).to(torch.float32)
         cam_one_hot = F.one_hot(cam.to(torch.int64), num_classes=self.cam_vals.shape[0]).to(torch.float32)
 
-        meta_embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1)) # [b, 10] -> [b,encode_ch]
-        meta_embedding = meta_embedding.reshape((-1, self.in_ch*2, 1, 1))
-        
+        # Generate meta embeddings and reshape for broadcasting
+        meta_embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1))
+        meta_embedding = meta_embedding.reshape((-1, self.in_ch * 2, 1, 1))
+
+        # Generate structure embeddings and combine with meta embeddings
         structure_embedding = self.structure_encoder(kwargs['clean'])
         embedding = structure_embedding * meta_embedding
         return embedding
     
     def _inverse(self, z, **kwargs):
+        """
+        Applies the inverse transformation to the input tensor z.
+
+        Args:
+            z (tensor): Input tensor to be inversely transformed.
+            kwargs: Additional keyword arguments containing 'ISO-level', 'smartphone-code', and 'clean'.
+
+        Returns:
+            tensor: The inversely transformed tensor.
+        """
         embedding = self._get_embeddings(z, **kwargs)
 
-        log_scale = embedding[:,:self.in_ch, ...]
-        bias = embedding[:,self.in_ch:, ...]
-        z = (z - bias)/torch.exp(log_scale)
+        log_scale = embedding[:, :self.in_ch, ...]
+        bias = embedding[:, self.in_ch:, ...]
+        z = (z - bias) / torch.exp(log_scale)
         return z
 
     def _forward_and_log_det_jacobian(self, x, **kwargs):
+        """
+        Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
+
+        Args:
+            x (tensor): Input tensor to be transformed.
+            kwargs: Additional keyword arguments containing 'ISO-level', 'smartphone-code', and 'clean'.
+
+        Returns:
+            tensor: The transformed tensor.
+            tensor: The log determinant of the Jacobian of the transformation.
+        """
         embedding = self._get_embeddings(x, **kwargs)
 
-        log_scale = embedding[:,:self.in_ch, ...]
-        bias = embedding[:,self.in_ch:, ...]
+        log_scale = embedding[:, :self.in_ch, ...]
+        bias = embedding[:, self.in_ch:, ...]
         
-        z = torch.exp(log_scale)*x + bias
-        log_abs_det_J_inv = torch.sum(log_scale, dim=[1,2,3])
+        z = torch.exp(log_scale) * x + bias
+        log_abs_det_J_inv = torch.sum(log_scale, dim=[1, 2, 3])
         return z, log_abs_det_J_inv
 
 
-# %% ../nbs/02_layers.ipynb 21
+
+# %% ../nbs/02_layers.ipynb 27
 @regist_layer
 class PointwiseConvs(nn.Module):
+    """
+    Pointwise convolutional module for neural networks.
+
+    This module consists of a series of pointwise convolutions with instance normalization
+    and LeakyReLU activation functions.
+
+    Attributes:
+        name (str): Name of the module.
+        device (str): Device to run computations on.
+        body (nn.Sequential): Sequential module containing the layers.
+
+    Methods:
+        _get_basic_module(in_ch, out_ch, k_size=1, stride=1, padding=1, negative_slope=0.2):
+            Returns a basic convolutional module with instance normalization and LeakyReLU activation.
+
+        forward(x):
+            Performs forward pass through the module.
+    """
     def __init__(self, in_features=3, out_features=3, feats=32, device='cpu', name='pointwise_convs'):
+        """
+        Initializes the PointwiseConvs module with specified parameters.
+
+        Args:
+            in_features (int): Number of input features/channels. Default is 3.
+            out_features (int): Number of output features/channels. Default is 3.
+            feats (int): Number of features in intermediate layers. Default is 32.
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'pointwise_convs').
+        """
         super(PointwiseConvs, self).__init__()
         self.name = name
         self.device = device 
@@ -361,48 +734,124 @@ class PointwiseConvs(nn.Module):
         )
 
     def _get_basic_module(self, in_ch, out_ch, k_size=1, stride=1, padding=1, negative_slope=0.2):
-            return nn.Sequential(
-                    nn.Conv2d(in_ch, out_ch, kernel_size=k_size, stride=stride, padding=padding),
-                    nn.InstanceNorm2d(out_ch, affine=True), #batch normalization?
-                    nn.LeakyReLU(negative_slope, inplace=True)
-            )
+        """
+        Returns a basic convolutional module with instance normalization and LeakyReLU activation.
+
+        Args:
+            in_ch (int): Number of input channels.
+            out_ch (int): Number of output channels.
+            k_size (int): Kernel size of the convolution. Default is 1.
+            stride (int): Stride of the convolution. Default is 1.
+            padding (int): Padding of the convolution. Default is 1.
+            negative_slope (float): Slope of the LeakyReLU activation function. Default is 0.2.
+
+        Returns:
+            nn.Sequential: Sequential module containing Conv2d, InstanceNorm2d, and LeakyReLU layers.
+        """
+        return nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, kernel_size=k_size, stride=stride, padding=padding),
+            nn.InstanceNorm2d(out_ch, affine=True),  # Instance normalization
+            nn.LeakyReLU(negative_slope, inplace=True)
+        )
     
     def forward(self, x):
+        """
+        Performs forward pass through the PointwiseConvs module.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, in_features, height, width).
+
+        Returns:
+            torch.Tensor: Output tensor after passing through the module.
+        """
         return self.body(x)
 
-# %% ../nbs/02_layers.ipynb 23
+
+# %% ../nbs/02_layers.ipynb 29
 @regist_layer
 class SpatialConvs(nn.Module):
-    def __init__(self, in_features=3, out_features=3, feats=32, receptive_field=9, device='cpu', name='pointwise_convs'):
+    """
+    Spatial convolutional module for neural networks.
+
+    This module consists of a series of spatial convolutions with ReLU activation functions.
+
+    Attributes:
+        name (str): Name of the module.
+        device (str): Device to run computations on.
+        receptive_field (int): Size of the receptive field for spatial convolutions.
+        body (nn.Sequential): Sequential module containing the layers.
+
+    Methods:
+        _get_basic_module(in_ch, out_ch, k_size=1, stride=1, padding=1, negative_slope=0.2):
+            Returns a basic convolutional module with instance normalization and LeakyReLU activation.
+
+        forward(x):
+            Performs forward pass through the module.
+    """
+    def __init__(self, in_features=3, out_features=3, feats=32, receptive_field=9, device='cpu', name='spatial_convs'):
+        """
+        Initializes the SpatialConvs module with specified parameters.
+
+        Args:
+            in_features (int): Number of input features/channels. Default is 3.
+            out_features (int): Number of output features/channels. Default is 3.
+            feats (int): Number of features in intermediate layers. Default is 32.
+            receptive_field (int): Size of the receptive field for spatial convolutions. Default is 9.
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'spatial_convs').
+        """
         super(SpatialConvs, self).__init__()
         self.name = name
         self.device = device 
-
         self.receptive_field = receptive_field
 
-        self.body = list()
-        self.body.append(nn.Conv2d(in_features, feats, kernel_size=1, stride=1, padding=0))
-        self.body.append(nn.ReLU(inplace=True))
+        self.body = nn.Sequential()
+        self.body.add_module('conv_in', nn.Conv2d(in_features, feats, kernel_size=1, stride=1, padding=0))
+        self.body.add_module('relu_in', nn.ReLU(inplace=True))
 
-        for _ in range(self.receptive_field//2):
-            self.body.append(nn.Conv2d(feats, feats, kernel_size=3, stride=1, padding=1))
-            self.body.append(nn.ReLU(inplace=True))
+        # Add spatial convolutions with ReLU activations
+        for _ in range(self.receptive_field // 2):
+            self.body.add_module('conv', nn.Conv2d(feats, feats, kernel_size=3, stride=1, padding=1))
+            self.body.add_module('relu', nn.ReLU(inplace=True))
         
-        self.body.append(nn.Conv2d(feats, out_features, kernel_size=1, stride=1, padding=0))
-        self.body.append(nn.Tanh())
-        self.body = nn.Sequential(*self.body)
+        self.body.add_module('conv_out', nn.Conv2d(feats, out_features, kernel_size=1, stride=1, padding=0))
+        self.body.add_module('tanh_out', nn.Tanh())
 
     def _get_basic_module(self, in_ch, out_ch, k_size=1, stride=1, padding=1, negative_slope=0.2):
-            return nn.Sequential(
-                    nn.Conv2d(in_ch, out_ch, kernel_size=k_size, stride=stride, padding=padding),
-                    nn.InstanceNorm2d(out_ch, affine=True), #batch normalization?
-                    nn.LeakyReLU(negative_slope, inplace=True)
-            )
+        """
+        Returns a basic convolutional module with instance normalization and LeakyReLU activation.
+
+        Args:
+            in_ch (int): Number of input channels.
+            out_ch (int): Number of output channels.
+            k_size (int): Kernel size of the convolution. Default is 1.
+            stride (int): Stride of the convolution. Default is 1.
+            padding (int): Padding of the convolution. Default is 1.
+            negative_slope (float): Slope of the LeakyReLU activation function. Default is 0.2.
+
+        Returns:
+            nn.Sequential: Sequential module containing Conv2d, InstanceNorm2d, and LeakyReLU layers.
+        """
+        return nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, kernel_size=k_size, stride=stride, padding=padding),
+            nn.InstanceNorm2d(out_ch, affine=True),  # Instance normalization
+            nn.LeakyReLU(negative_slope, inplace=True)
+        )
     
     def forward(self, x):
+        """
+        Performs forward pass through the SpatialConvs module.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, in_features, height, width).
+
+        Returns:
+            torch.Tensor: Output tensor after passing through the module.
+        """
         return self.body(x)
 
-# %% ../nbs/02_layers.ipynb 27
+
+# %% ../nbs/02_layers.ipynb 33
 from torch.nn import functional as F, init
 
 class ResidualBlock(nn.Module):
@@ -462,7 +911,7 @@ class ResidualBlock(nn.Module):
         return inputs + temps
 
 
-# %% ../nbs/02_layers.ipynb 28
+# %% ../nbs/02_layers.ipynb 34
 @regist_layer
 class ResidualNet(nn.Module):
     """A general-purpose residual network. Works only with 1-dim inputs."""
@@ -506,7 +955,7 @@ class ResidualNet(nn.Module):
         outputs = self.final_layer(temps)
         return outputs
 
-# %% ../nbs/02_layers.ipynb 30
+# %% ../nbs/02_layers.ipynb 36
 # class Gain(Flow):
 #     """
 #     Gain & Offset flow layer

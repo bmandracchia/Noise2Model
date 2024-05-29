@@ -217,8 +217,8 @@ class ConditionalLinear(nn.Module):
 
     Attributes:
         name (str): Name of the transformation.
-        pixel_size (torch.Tensor): Predefined set of pixel sizes.
-        cam_vals (torch.Tensor): Predefined set of camera values.
+        setup_code (torch.Tensor): Predefined set of pixel sizes.
+        exp_times (torch.Tensor): Predefined set of camera values.
         log_scale (torch.nn.Parameter): Learnable log-scale parameters.
         bias (torch.nn.Parameter): Learnable bias parameters.
 
@@ -230,7 +230,7 @@ class ConditionalLinear(nn.Module):
             Performs the forward transformation and computes the log determinant of the Jacobian.
     """
 
-    def __init__(self, device='cpu', name='linear_transformation'):
+    def __init__(self, device='cpu', name='linear_transformation', setup_codes=[0, 1], exp_times=[10, 20, 50, 100]):
         """
         Initializes the ConditionalLinear module.
 
@@ -241,13 +241,27 @@ class ConditionalLinear(nn.Module):
         super(ConditionalLinear, self).__init__()
         self.name = name
 
-        # Define predefined sets of pixel sizes and camera values
-        self.pixel_size = torch.tensor([60, 90, 100, 160, 320], dtype=torch.float32, device=device)
-        self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
+        # Define predefined sets of setup configurations and exposure times
+        self.setup_codes = torch.tensor(setup_codes, dtype=torch.float32, device=device)
+        self.exp_times = torch.tensor(exp_times, dtype=torch.float32, device=device) 
 
         # Learnable parameters
-        self.log_scale = nn.Parameter(torch.zeros(25), requires_grad=True)
-        self.bias = nn.Parameter(torch.zeros(25), requires_grad=True)
+        self.par_num = len(setup_codes)*len(exp_times)
+        self.log_scale = nn.Parameter(torch.zeros(self.par_num), requires_grad=True)
+        self.bias = nn.Parameter(torch.zeros(self.par_num), requires_grad=True)
+        
+    def _compute_one_hot(self, **kwargs):
+        # Compute one-hot encoded pixel indices based on the mean of 'pixel' in kwargs
+        setup_one_hot = self.setup_codes == torch.mean(kwargs['optical-setup'], dim=[1, 2, 3]).unsqueeze(1)
+        setup_idx = setup_one_hot.nonzero()[:, 1]
+
+        # Compute one-hot encoded camera indices based on the mean of 'cam' in kwargs
+        time_one_hot = self.exp_times == torch.mean(kwargs['exposure-time'], dim=[1, 2, 3]).unsqueeze(1)
+        time_idx = time_one_hot.nonzero()[:, 1]
+
+        # Combine pixel and camera indices to get total indices
+        return setup_idx * len(time_idx) + time_idx
+        
 
     def _inverse(self, z, **kwargs):
         """
@@ -260,21 +274,12 @@ class ConditionalLinear(nn.Module):
         Returns:
             torch.Tensor: Output tensor after applying the inverse transformation.
         """
-        # Compute one-hot encoded pixel indices based on the mean of 'pixel' in kwargs
-        gain_one_hot = self.pixel_size == torch.mean(kwargs['pixel'], dim=[1, 2, 3]).unsqueeze(1)
-        pixel = gain_one_hot.nonzero()[:, 1]
+        idx = self._compute_one_hot(**kwargs)
+        idx = torch.arange(0, self.par_num).to(z.device) == idx.unsqueeze(1)
 
-        # Compute one-hot encoded camera indices based on the mean of 'cam' in kwargs
-        cam_one_hot = self.cam_vals == torch.mean(kwargs['cam'], dim=[1, 2, 3]).unsqueeze(1)
-        cam = cam_one_hot.nonzero()[:, 1]
-
-        # Combine pixel and camera indices to get iso_cam indices
-        iso_cam = pixel * 5 + cam
-        iso_cam = torch.arange(0, 25).to(z.device) == iso_cam.unsqueeze(1)
-
-        # Select corresponding log_scale and bias values based on iso_cam indices
-        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
-        bias = self.bias.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
+        # Select corresponding log_scale and bias values based on idx indices
+        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[idx]
+        bias = self.bias.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[idx]
 
         # Compute the inverse transformation
         x = (z - bias.reshape((-1, 1, 1, 1))) / torch.exp(log_scale.reshape((-1, 1, 1, 1)))
@@ -292,21 +297,12 @@ class ConditionalLinear(nn.Module):
             torch.Tensor: Output tensor after applying the forward transformation.
             torch.Tensor: Log determinant of the Jacobian.
         """
-        # Compute one-hot encoded pixel indices based on the mean of 'pixel' in kwargs
-        gain_one_hot = self.pixel_size == torch.mean(kwargs['pixel'], dim=[1, 2, 3]).unsqueeze(1)
-        pixel = gain_one_hot.nonzero()[:, 1]
+        idx = self._compute_one_hot(**kwargs)
+        idx = torch.arange(0, self.par_num).to(x.device) == idx.unsqueeze(1)
 
-        # Compute one-hot encoded camera indices based on the mean of 'cam' in kwargs
-        cam_one_hot = self.cam_vals == torch.mean(kwargs['cam'], dim=[1, 2, 3]).unsqueeze(1)
-        cam = cam_one_hot.nonzero()[:, 1]
-
-        # Combine pixel and camera indices to get iso_cam indices
-        iso_cam = pixel * 5 + cam
-        iso_cam = torch.arange(0, 25).to(x.device) == iso_cam.unsqueeze(1)
-
-        # Select corresponding log_scale and bias values based on iso_cam indices
-        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
-        bias = self.bias.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
+        # Select corresponding log_scale and bias values based on idx indices
+        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[idx]
+        bias = self.bias.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[idx]
 
         # Compute the forward transformation
         z = x * torch.exp(log_scale.reshape((-1, 1, 1, 1))) + bias.reshape((-1, 1, 1, 1))
@@ -344,7 +340,7 @@ class ConditionalLinearExp2(nn.Module):
             Applies the forward transformation to the input tensor x and computes the log determinant
             of the Jacobian of the transformation.
     """
-    def __init__(self, in_ch=1, device='cpu', name='linear_transformation_exp2'):
+    def __init__(self, in_ch=1, device='cpu', name='linear_transformation_exp2', setup_codes=[0, 1], exp_times=[10, 20, 50, 100]):
         """
         Initializes the ConditionalLinearExp2 module with specified input channels, device, and name.
 
@@ -357,13 +353,28 @@ class ConditionalLinearExp2(nn.Module):
         self.name = name
         self.device = device 
 
-        # camera values used for conditioning the transformation
-        self.pixel_size = torch.tensor([60, 90, 100, 160, 320], dtype=torch.float32, device=device)
-        self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
+        # Define predefined sets of setup configurations and exposure times
+        self.setup_codes = torch.tensor(setup_codes, dtype=torch.float32, device=device)
+        self.exp_times = torch.tensor(exp_times, dtype=torch.float32, device=device) 
 
-        # Parameters for the linear transformation, conditioned on camera values
-        self.log_scale = nn.Parameter(torch.zeros(25, in_ch), requires_grad=True)
-        self.bias = nn.Parameter(torch.zeros(25, in_ch), requires_grad=True)
+        # Learnable parameters
+        self.par_num = len(setup_codes)*len(exp_times)
+        self.log_scale = nn.Parameter(torch.zeros(self.par_num, in_ch), requires_grad=True)
+        self.bias = nn.Parameter(torch.zeros(self.par_num, in_ch), requires_grad=True)
+        
+    def _compute_one_hot(self, b, **kwargs):
+        # Compute one-hot encoded pixel indices based on the mean of 'pixel' in kwargs
+        setup_idx = torch.zeros([b], device=self.device, dtype=torch.float32)
+        for s_idx, s_val in enumerate(self.setup_codes):
+            setup_idx += torch.where(kwargs['optical-setup'] == s_val, s_idx, 0.0)
+        
+        # Compute one-hot encoded camera indices based on the mean of 'cam' in kwargs
+        time_idx = torch.zeros([b], device=self.device, dtype=torch.float32)
+        for t_idx, t_val in enumerate(self.setup_codes):
+            time_idx += torch.where(kwargs['exposure-time'] == t_val, t_idx, 0.0)
+
+        # Combine pixel and camera indices to get total indices
+        return setup_idx * len(time_idx) + time_idx
 
     def _inverse(self, z, **kwargs):
         """
@@ -378,23 +389,13 @@ class ConditionalLinearExp2(nn.Module):
         """
         b, _, _, _ = z.shape
 
-        # Determine ISO index based on 'pixel-size' from kwargs
-        iso = torch.zeros([b], device=self.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.pixel_size):
-            iso += torch.where(kwargs['pixel-size'] == iso_val, iso_idx, 0.0)
-
-        # Determine camera index based on 'ssetup-code' from kwargs
-        cam = torch.zeros([b], device=self.device, dtype=torch.float32)
-        for cam_idx, cam_val in enumerate(self.cam_vals):
-            cam += torch.where(kwargs['setup-code'] == cam_val, cam_idx, 0.0)
-
         # Combine pixel and camera indices to get a unique index for each combination
-        iso_cam = iso * self.pixel_size.shape[0] + cam
-        iso_cam = torch.arange(0, self.pixel_size.shape[0] * self.cam_vals.shape[0]).to(device) == iso_cam.unsqueeze(1)
+        idx = self._compute_one_hot(b, **kwargs)
+        idx = torch.arange(0, self.par_num).to(self.device) == idx.unsqueeze(1)
 
         # Select log scale and bias parameters based on the unique index
-        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
-        bias = self.bias.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[iso_cam]
+        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[idx]
+        bias = self.bias.unsqueeze(0).repeat_interleave(z.shape[0], dim=0)[idx]
 
         # Apply the inverse transformation
         x = (z - bias.reshape((-1, z.shape[1], 1, 1))) / torch.exp(log_scale.reshape((-1, z.shape[1], 1, 1)))
@@ -414,23 +415,13 @@ class ConditionalLinearExp2(nn.Module):
         """
         b, _, _, _ = x.shape
 
-        # Determine ISO index based on 'ISO-level' from kwargs
-        iso = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.pixel_size):
-            iso += torch.where(kwargs['pixel-size'] == iso_val, iso_idx, 0.0)
-
-        # Determine camera index based on 'setup-code' from kwargs
-        cam = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for cam_idx, cam_val in enumerate(self.cam_vals):
-            cam += torch.where(kwargs['setup-code'] == cam_val, cam_idx, 0.0)
-
         # Combine pixel and camera indices to get a unique index for each combination
-        iso_cam = iso * self.pixel_size.shape[0] + cam
-        iso_cam = torch.arange(0, self.pixel_size.shape[0] * self.cam_vals.shape[0]).to(device) == iso_cam.unsqueeze(1)
+        idx = self._compute_one_hot(b, **kwargs)
+        idx = torch.arange(0, self.par_num).to(self.device) == idx.unsqueeze(1)
 
         # Select log scale and bias parameters based on the unique index
-        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
-        bias = self.bias.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[iso_cam]
+        log_scale = self.log_scale.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[idx]
+        bias = self.bias.unsqueeze(0).repeat_interleave(x.shape[0], dim=0)[idx]
 
         # Apply the forward transformation
         z = x * torch.exp(log_scale.reshape((-1, x.shape[1], 1, 1))) + bias.reshape((-1, x.shape[1], 1, 1))
@@ -453,8 +444,8 @@ class SignalDependentConditionalLinear(nn.Module):
         name (str): Name of the module.
         device (str): Device to run computations on.
         in_ch (int): Number of input channels.
-        iso_vals (tensor): Predefined ISO levels used for conditioning.
-        cam_vals (tensor): Predefined smartphone codes used for conditioning.
+        setup_codes (tensor): Predefined ISO levels used for conditioning.
+        exp_times (tensor): Predefined smartphone codes used for conditioning.
         encode_ch (int): Number of channels in the embeddings generated by the meta encoder.
         meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs.
         scale_and_bias (nn.Module): Module to compute scale and bias parameters based on embeddings and input features.
@@ -469,7 +460,7 @@ class SignalDependentConditionalLinear(nn.Module):
         _forward_and_log_det_jacobian(x, **kwargs):
             Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
     """
-    def __init__(self, meta_encoder, scale_and_bias, in_ch=1, device='cpu', name='signal_dependent_condition_linear'):
+    def __init__(self, meta_encoder, scale_and_bias, in_ch=1, device='cpu', name='signal_dependent_condition_linear', setup_codes=[0, 1], exp_times=[10, 20, 50, 100], encode_ch = 3):
         """
         Initializes the SignalDependentConditionalLinear module with specified meta encoder, scale-and-bias module,
         input channels, device, and name.
@@ -486,9 +477,9 @@ class SignalDependentConditionalLinear(nn.Module):
         self.device = device 
 
         self.in_ch = in_ch
-        self.iso_vals = torch.tensor([100, 400, 800, 1600, 3200], dtype=torch.float32, device=device)
-        self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
-        self.encode_ch = 3
+        self.setup_codes = torch.tensor(setup_codes, dtype=torch.float32, device=device)
+        self.exp_times = torch.tensor(exp_times, dtype=torch.float32, device=device) 
+        self.encode_ch = encode_ch
         self.meta_encoder = meta_encoder(10, self.encode_ch)
         self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2) # scale, bias per channels
 
@@ -507,16 +498,16 @@ class SignalDependentConditionalLinear(nn.Module):
 
         # Compute ISO and camera indices based on 'ISO-level' and 'smartphone-code'
         iso = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.iso_vals):
+        for iso_idx, iso_val in enumerate(self.setup_codes):
             iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
 
         cam = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for cam_idx, cam_val in enumerate(self.cam_vals):
+        for cam_idx, cam_val in enumerate(self.exp_times):
             cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
 
         # One-hot encode ISO and camera indices
-        iso_one_hot = F.one_hot(iso.to(torch.int64), num_classes=self.iso_vals.shape[0]).to(torch.float32)
-        cam_one_hot = F.one_hot(cam.to(torch.int64), num_classes=self.cam_vals.shape[0]).to(torch.float32)
+        iso_one_hot = F.one_hot(iso.to(torch.int64), num_classes=self.setup_codes.shape[0]).to(torch.float32)
+        cam_one_hot = F.one_hot(cam.to(torch.int64), num_classes=self.exp_times.shape[0]).to(torch.float32)
 
         # Generate embeddings using the meta encoder
         embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1))

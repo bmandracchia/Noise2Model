@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['flow_layer_class_dict', 'regist_layer', 'get_flow_layer', 'UniformDequantization', 'ConditionalLinear',
            'ConditionalLinearExp2', 'SignalDependentConditionalLinear', 'StructureAwareConditionalLinearLayer',
-           'PointwiseConvs', 'SpatialConvs', 'ResidualBlock', 'ResidualNet']
+           'PointwiseConvs', 'SpatialConvs']
 
 # %% ../nbs/02_layers.ipynb 4
 import os
@@ -14,7 +14,7 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
-from .utils import attributesFromDict, compute_index
+from .utils import attributesFromDict, compute_index, compute_one_hot
 
 # %% ../nbs/02_layers.ipynb 5
 flow_layer_class_dict = {}
@@ -469,8 +469,8 @@ class SignalDependentConditionalLinear(nn.Module):
         self.meta_encoder = meta_encoder(n, self.encode_ch)
         self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2) # scale, bias per channels
         
-    def _computeIndex(self, b, **kwargs):
-        return compute_index(self.codes, device=self.device)(b, **kwargs)
+    def _computeOneHot(self, b, **kwargs):
+        return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
 
     def _get_embeddings(self, x, **kwargs):
         """
@@ -483,23 +483,10 @@ class SignalDependentConditionalLinear(nn.Module):
         Returns:
             tensor: Embeddings concatenated with additional features.
         """
-        b, _, _, _ = x.shape
-
-        # Compute ISO and camera indices based on 'ISO-level' and 'smartphone-code'
-        iso = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.setup_codes):
-            iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
-
-        cam = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for cam_idx, cam_val in enumerate(self.exp_times):
-            cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
-
-        # One-hot encode ISO and camera indices
-        iso_one_hot = F.one_hot(iso.to(torch.int64), num_classes=self.setup_codes.shape[0]).to(torch.float32)
-        cam_one_hot = F.one_hot(cam.to(torch.int64), num_classes=self.exp_times.shape[0]).to(torch.float32)
+        batch_size = x.shape[0]
 
         # Generate embeddings using the meta encoder
-        embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1))
+        embedding = self.meta_encoder(self._computeOneHot(batch_size,**kwargs))
         embedding = embedding.reshape((-1, self.encode_ch, 1, 1))
         embedding = torch.repeat_interleave(embedding, x.shape[-2], dim=-2)
         embedding = torch.repeat_interleave(embedding, x.shape[-1], dim=-1)
@@ -579,7 +566,7 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         _forward_and_log_det_jacobian(x, **kwargs):
             Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.
     """
-    def __init__(self, meta_encoder, structure_encoder, in_ch=3, device='cpu', name='structure_aware_condition_linear'):
+    def __init__(self, meta_encoder, structure_encoder, in_ch=1, device='cpu', name='structure_aware_condition_linear', codes={'code': [1, 2, 3]}):
         """
         Initializes the StructureAwareConditionalLinearLayer module with specified meta encoder, structure encoder,
         input channels, device, and name.
@@ -593,11 +580,16 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         """
         super(StructureAwareConditionalLinearLayer, self).__init__()
         self.in_ch = in_ch
-        self.iso_vals = torch.tensor([100, 400, 800, 1600, 3200], dtype=torch.float32, device=device)
-        self.cam_vals = torch.tensor([0, 1, 2, 3, 4], dtype=torch.float32, device=device)  # 'IP', 'GP', 'S6', 'N6', 'G4'
+        self.codes = codes
 
-        self.meta_encoder = meta_encoder(10, in_ch * 2)
+        n = 0
+        for k,v in codes.items():
+            n += len(v)
+        self.meta_encoder = meta_encoder(n, in_ch * 2)
         self.structure_encoder = structure_encoder(in_ch, in_ch * 2)
+        
+    def _computeOneHot(self, b, **kwargs):
+        return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
 
     def _get_embeddings(self, x, **kwargs):
         """
@@ -610,23 +602,10 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         Returns:
             tensor: Combined embeddings from meta and structure encodings.
         """
-        b, _, _, _ = x.shape
+        batch_size = x.shape[0]
 
-        # Compute ISO and camera indices based on 'ISO-level' and 'smartphone-code'
-        iso = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for iso_idx, iso_val in enumerate(self.iso_vals):
-            iso += torch.where(kwargs['ISO-level'] == iso_val, iso_idx, 0.0)
-
-        cam = torch.zeros([b], device=x.device, dtype=torch.float32)
-        for cam_idx, cam_val in enumerate(self.cam_vals):
-            cam += torch.where(kwargs['smartphone-code'] == cam_val, cam_idx, 0.0)
-
-        # One-hot encode ISO and camera indices
-        iso_one_hot = F.one_hot(iso.to(torch.int64), num_classes=self.iso_vals.shape[0]).to(torch.float32)
-        cam_one_hot = F.one_hot(cam.to(torch.int64), num_classes=self.cam_vals.shape[0]).to(torch.float32)
-
-        # Generate meta embeddings and reshape for broadcasting
-        meta_embedding = self.meta_encoder(torch.cat((iso_one_hot, cam_one_hot), dim=1))
+        # Generate embeddings using the meta encoder
+        meta_embedding = self.meta_encoder(self._computeOneHot(batch_size,**kwargs))
         meta_embedding = meta_embedding.reshape((-1, self.in_ch * 2, 1, 1))
 
         # Generate structure embeddings and combine with meta embeddings
@@ -675,7 +654,7 @@ class StructureAwareConditionalLinearLayer(nn.Module):
 
 
 
-# %% ../nbs/02_layers.ipynb 27
+# %% ../nbs/02_layers.ipynb 28
 @regist_layer
 class PointwiseConvs(nn.Module):
     """
@@ -696,7 +675,7 @@ class PointwiseConvs(nn.Module):
         forward(x):
             Performs forward pass through the module.
     """
-    def __init__(self, in_features=3, out_features=3, feats=32, device='cpu', name='pointwise_convs'):
+    def __init__(self, in_features=1, out_features=1, feats=32, device='cpu', name='pointwise_convs'):
         """
         Initializes the PointwiseConvs module with specified parameters.
 
@@ -753,7 +732,7 @@ class PointwiseConvs(nn.Module):
         return self.body(x)
 
 
-# %% ../nbs/02_layers.ipynb 29
+# %% ../nbs/02_layers.ipynb 30
 @regist_layer
 class SpatialConvs(nn.Module):
     """
@@ -774,7 +753,7 @@ class SpatialConvs(nn.Module):
         forward(x):
             Performs forward pass through the module.
     """
-    def __init__(self, in_features=3, out_features=3, feats=32, receptive_field=9, device='cpu', name='spatial_convs'):
+    def __init__(self, in_features=1, out_features=1, feats=32, receptive_field=9, device='cpu', name='spatial_convs'):
         """
         Initializes the SpatialConvs module with specified parameters.
 
@@ -837,111 +816,7 @@ class SpatialConvs(nn.Module):
         return self.body(x)
 
 
-# %% ../nbs/02_layers.ipynb 33
-from torch.nn import functional as F, init
-
-class ResidualBlock(nn.Module):
-    """A general-purpose residual block. Works only with 1-dim inputs."""
-
-    def __init__(self,
-                 features,
-                 context_features,
-                 activation=F.relu,
-                 dropout_probability=0.,
-                 use_batch_norm=False,
-                 zero_initialization=True):
-        super().__init__()
-        self.activation = activation
-
-        self.use_batch_norm = use_batch_norm
-        if use_batch_norm:
-            self.batch_norm_layers = nn.ModuleList([
-                #nn.BatchNorm1d(features, eps=1e-3, track_running_stats=False)
-                nn.BatchNorm1d(features, eps=1e-3)
-                for _ in range(2)
-            ])
-        if context_features is not None:
-            self.context_layer = nn.Linear(context_features, features)
-        self.linear_layers = nn.ModuleList([
-            nn.Linear(features, features)
-            for _ in range(2)
-        ])
-        if dropout_probability > 0.:
-            self.dropout = nn.Dropout(p=dropout_probability)
-        else:
-            self.dropout = None
-        if zero_initialization:
-            init.uniform_(self.linear_layers[-1].weight, -1e-3, 1e-3)
-            init.uniform_(self.linear_layers[-1].bias, -1e-3, 1e-3)
-
-    def forward(self, inputs, context=None):
-        temps = inputs
-        if self.use_batch_norm:
-            temps = self.batch_norm_layers[0](temps)
-        temps = self.activation(temps)
-        temps = self.linear_layers[0](temps)
-        if self.use_batch_norm:
-            temps = self.batch_norm_layers[1](temps)
-        temps = self.activation(temps)
-        if self.dropout:
-            temps = self.dropout(temps)
-        temps = self.linear_layers[1](temps)
-        if context is not None:
-            temps = F.glu(
-                torch.cat(
-                    (temps, self.context_layer(context)),
-                    dim=1
-                ),
-                dim=1
-            )
-        return inputs + temps
-
-
 # %% ../nbs/02_layers.ipynb 34
-@regist_layer
-class ResidualNet(nn.Module):
-    """A general-purpose residual network. Works only with 1-dim inputs."""
-
-    def __init__(self,
-                 in_features,
-                 out_features,
-                 hidden_features,
-                 context_features=None,
-                 num_blocks=2,
-                 activation=F.relu,
-                 dropout_probability=0.,
-                 use_batch_norm=False):
-        super().__init__()
-        self.hidden_features = hidden_features
-        self.context_features = context_features
-        if context_features is not None:
-            self.initial_layer = nn.Linear(in_features + context_features, hidden_features)
-        else:
-            self.initial_layer = nn.Linear(in_features, hidden_features)
-        self.blocks = nn.ModuleList([
-            ResidualBlock(
-                features=hidden_features,
-                context_features=context_features,
-                activation=activation,
-                dropout_probability=dropout_probability,
-                use_batch_norm=use_batch_norm,
-            ) for _ in range(num_blocks)
-        ])
-        self.final_layer = nn.Linear(hidden_features, out_features)
-
-    def forward(self, inputs, context=None):
-        if context is None:
-            temps = self.initial_layer(inputs)
-        else:
-            temps = self.initial_layer(
-                torch.cat((inputs, context), dim=1)
-            )
-        for block in self.blocks:
-            temps = block(temps, context=context)
-        outputs = self.final_layer(temps)
-        return outputs
-
-# %% ../nbs/02_layers.ipynb 36
 # class Gain(Flow):
 #     """
 #     Gain & Offset flow layer

@@ -14,7 +14,8 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 from .layers import get_flow_layer
-from util.standard_normal_dist import StandardNormal
+from .networks import get_network_class, network_class_dict
+from .utils import StandardNormal
 
 
 # %% ../nbs/04_models.ipynb 5
@@ -31,7 +32,7 @@ def get_model_class(model_name:str):
     model_name = model_name.lower()
     return model_class_dict[model_name]
 
-# %% ../nbs/04_models.ipynb 7
+# %% ../nbs/04_models.ipynb 8
 @regist_model
 class NMFlow(nn.Module):
     def __init__(
@@ -42,10 +43,12 @@ class NMFlow(nn.Module):
         num_bits=16,
         conv_net_feats=16,
         pre_arch="UD",
-        arch="NE|SAL|SDL|CL2|SAL|SDL|CL2"
+        arch="NE|SAL|SDL|CL2|SAL|SDL|CL2",
+        device='cuda',
     ):
         super(NMFlow, self).__init__()
         self.num_bits=num_bits
+        self.device = device
 
         self.in_ch = in_ch
         self.ch_exp_coef = ch_exp_coef
@@ -73,17 +76,17 @@ class NMFlow(nn.Module):
 
     def get_flow_layer(self, name):
         if name == "UD":
-            return get_flow_layer("UniformDequantization")(device='cuda', num_bits=self.num_bits)
+            return get_flow_layer("UniformDequantization")(device=self.device, num_bits=self.num_bits)
         elif name == "NE":
-            return get_flow_layer("NoiseExtraction")(device='cuda')
+            return get_flow_layer("NoiseExtraction")(device=self.device)
         elif name == "CL2":
             return get_flow_layer("ConditionalLinearExp2")(
                 in_ch=self.internal_channels(),
-                device='cuda'
+                device=self.device
             )
         elif name == "SDL":
             return get_flow_layer("SignalDependentConditionalLinear")(
-                meta_encoder=lambda in_features, out_features: get_flow_layer("ResidualNet")(
+                meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
                     in_features=in_features,
                     out_features=out_features,
                     hidden_features=5,
@@ -97,11 +100,11 @@ class NMFlow(nn.Module):
                     feats=self.conv_net_feats
                 ),
                 in_ch=self.internal_channels(),
-                device='cuda'
+                device=self.device
             )
         elif name == "SAL":
             return get_flow_layer("StructureAwareConditionalLinearLayer")(
-                meta_encoder=lambda in_features, out_features: get_flow_layer("ResidualNet")(
+                meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
                     in_features=in_features,
                     out_features=out_features,
                     hidden_features=5,
@@ -116,7 +119,7 @@ class NMFlow(nn.Module):
                     feats=self.conv_net_feats
                 ),
                 in_ch=self.internal_channels(),
-                device='cuda'
+                device=self.device
             )
         else:
             assert False, f"Invalid layer name : {name}"
@@ -156,14 +159,14 @@ class NMFlow(nn.Module):
         return x 
 
 
-# %% ../nbs/04_models.ipynb 9
+# %% ../nbs/04_models.ipynb 11
 class NMFlowDenoiser(nn.Module):
     def __init__(
             self,
             denoiser,
             kwargs_flow,
             flow_pth_path,
-            num_bits=14,
+            num_bits=8,
         ):
         super().__init__()
         self.denoiser = denoiser

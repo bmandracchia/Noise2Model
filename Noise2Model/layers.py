@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['flow_layer_class_dict', 'regist_layer', 'get_flow_layer', 'UniformDequantization', 'ConditionalLinear',
            'ConditionalLinearExp2', 'SignalDependentConditionalLinear', 'StructureAwareConditionalLinearLayer',
-           'PointwiseConvs', 'SpatialConvs']
+           'PointwiseConvs', 'SpatialConvs', 'NoiseExtraction']
 
 # %% ../nbs/02_layers.ipynb 4
 import os
@@ -814,6 +814,68 @@ class SpatialConvs(nn.Module):
             torch.Tensor: Output tensor after passing through the module.
         """
         return self.body(x)
+
+
+# %% ../nbs/02_layers.ipynb 32
+@regist_layer
+class NoiseExtraction(nn.Module):
+    """
+    Module for noise extraction in neural networks.
+
+    This module extracts noise by adding or subtracting the clean signal from the input.
+
+    Attributes:
+        name (str): Name of the module.
+        device (str): Device to run computations on.
+
+    Methods:
+        _inverse(z, **kwargs):
+            Computes the inverse operation by adding the clean signal to z.
+
+        _forward_and_log_det_jacobian(x, **kwargs):
+            Computes forward operation by subtracting the clean signal from x and returns a zero log determinant Jacobian.
+    """
+    def __init__(self, device='cpu', name='noise_extraction'):
+        """
+        Initializes the NoiseExtraction module with specified parameters.
+
+        Args:
+            device (str): Device to run computations on (default: 'cpu').
+            name (str): Name of the module (default: 'noise_extraction').
+        """
+        super(NoiseExtraction, self).__init__()
+        self.name = name
+        self.device = device
+
+    def _inverse(self, z, **kwargs):
+        """
+        Computes the inverse operation by adding the clean signal to z.
+
+        Args:
+            z (torch.Tensor): Input tensor of shape (batch_size, ...).
+            **kwargs: Additional keyword arguments, expected 'clean' as a tensor of the same shape as z.
+
+        Returns:
+            torch.Tensor: Output tensor after adding the clean signal to z.
+        """
+        x = z + kwargs['clean']
+        return x
+
+    def _forward_and_log_det_jacobian(self, x, **kwargs):
+        """
+        Computes forward operation by subtracting the clean signal from x and returns a zero log determinant Jacobian.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, ...).
+            **kwargs: Additional keyword arguments, expected 'clean' as a tensor of the same shape as x.
+
+        Returns:
+            torch.Tensor: Output tensor after subtracting the clean signal from x.
+            torch.Tensor: Log determinant Jacobian (ldj), which is zero in this case.
+        """
+        z = x - kwargs['clean']
+        ldj = torch.zeros(x.shape[0], device=self.device)
+        return z, ldj
 
 
 # %% ../nbs/02_layers.ipynb 34

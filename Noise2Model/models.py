@@ -75,54 +75,60 @@ class NMFlow(nn.Module):
         return int(self.in_ch * self.width_exp_coef)
 
     def get_flow_layer(self, name):
-        if name == "UD":
-            return get_flow_layer("UniformDequantization")(device=self.device, num_bits=self.num_bits)
-        elif name == "NE":
-            return get_flow_layer("NoiseExtraction")(device=self.device)
-        elif name == "CL2":
-            return get_flow_layer("ConditionalLinearExp2")(
-                in_ch=self.internal_channels(),
-                device=self.device
-            )
-        elif name == "SDL":
-            return get_flow_layer("SignalDependentConditionalLinear")(
-                meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
-                    in_features=in_features,
-                    out_features=out_features,
-                    hidden_features=5,
-                    num_blocks=3,
-                    use_batch_norm=True,
-                    dropout_probability=0.0
-                ),
-                scale_and_bias=lambda in_features, out_features: get_flow_layer("PointwiseConvs")(
-                    in_features=in_features,
-                    out_features=out_features,
-                    feats=self.conv_net_feats
-                ),
-                in_ch=self.internal_channels(),
-                device=self.device
-            )
-        elif name == "SAL":
-            return get_flow_layer("StructureAwareConditionalLinearLayer")(
-                meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
-                    in_features=in_features,
-                    out_features=out_features,
-                    hidden_features=5,
-                    num_blocks=3,
-                    use_batch_norm=True,
-                    dropout_probability=0.0
-                ),
-                structure_encoder=lambda in_features, out_features: get_flow_layer("SpatialConvs")(
-                    in_features=in_features,
-                    out_features=out_features,
-                    receptive_field=9,
-                    feats=self.conv_net_feats
-                ),
-                in_ch=self.internal_channels(),
-                device=self.device
-            )
-        else:
-            assert False, f"Invalid layer name : {name}"
+        match name:
+            case "UD":
+                return get_flow_layer("UniformDequantization")(device=self.device, num_bits=self.num_bits)
+            
+            case "NE":
+                return get_flow_layer("NoiseExtraction")(device=self.device)    
+            
+            case "CL2":
+                return get_flow_layer("ConditionalLinearExp2")(
+                    in_ch=self.internal_channels(),
+                    device=self.device
+                )
+                
+            case "SDL":
+                return get_flow_layer("SignalDependentConditionalLinear")(
+                    meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
+                        in_features=in_features,
+                        out_features=out_features,
+                        hidden_features=5,
+                        num_blocks=3,
+                        use_batch_norm=True,
+                        dropout_probability=0.0
+                    ),
+                    scale_and_bias=lambda in_features, out_features: get_flow_layer("PointwiseConvs")(
+                        in_features=in_features,
+                        out_features=out_features,
+                        feats=self.conv_net_feats
+                    ),
+                    in_ch=self.internal_channels(),
+                    device=self.device
+                )
+                
+            case "SAL":
+                return get_flow_layer("StructureAwareConditionalLinearLayer")(
+                    meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
+                        in_features=in_features,
+                        out_features=out_features,
+                        hidden_features=5,
+                        num_blocks=3,
+                        use_batch_norm=True,
+                        dropout_probability=0.0
+                    ),
+                    structure_encoder=lambda in_features, out_features: get_flow_layer("SpatialConvs")(
+                        in_features=in_features,
+                        out_features=out_features,
+                        receptive_field=9,
+                        feats=self.conv_net_feats
+                    ),
+                    in_ch=self.internal_channels(),
+                    device=self.device
+                )
+            
+            case _: 
+                assert False, f"Invalid layer name : {name}"
 
     def forward(self, noisy, clean, kwargs=dict()):
         x = noisy

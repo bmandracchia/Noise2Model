@@ -15,7 +15,7 @@ from torch.nn.parameter import Parameter
 
 from .layers import get_flow_layer
 from .networks import get_network_class, network_class_dict
-from .utils import StandardNormal
+from .utils import StandardNormal, attributesFromDict
 
 
 # %% ../nbs/04_models.ipynb 5
@@ -32,7 +32,7 @@ def get_model_class(model_name:str):
     model_name = model_name.lower()
     return model_class_dict[model_name]
 
-# %% ../nbs/04_models.ipynb 8
+# %% ../nbs/04_models.ipynb 7
 @regist_model
 class NMFlow(nn.Module):
     def __init__(
@@ -47,14 +47,8 @@ class NMFlow(nn.Module):
         device='cuda',
     ):
         super(NMFlow, self).__init__()
-        self.num_bits=num_bits
-        self.device = device
-
-        self.in_ch = in_ch
-        self.ch_exp_coef = ch_exp_coef
-        self.width_exp_coef = width_exp_coef
-        self.conv_net_feats = conv_net_feats
-
+        attributesFromDict(locals()) # stores all the input parameters in self
+        
         self.pre_bijectors = list()
         pre_arch_lyrs = pre_arch.split('|')
         for lyr in pre_arch_lyrs:
@@ -165,7 +159,7 @@ class NMFlow(nn.Module):
         return x 
 
 
-# %% ../nbs/04_models.ipynb 11
+# %% ../nbs/04_models.ipynb 10
 class NMFlowDenoiser(nn.Module):
     def __init__(
             self,
@@ -175,10 +169,8 @@ class NMFlowDenoiser(nn.Module):
             num_bits=8,
         ):
         super().__init__()
-        self.denoiser = denoiser
-        self.kwargs_flow = kwargs_flow
-        self.flow_pth_path = flow_pth_path
-        self.num_bits = num_bits
+        attributesFromDict(locals()) # stores all the input parameters in self
+
         self.noise_model = get_model_class("NMFlow")(**kwargs_flow)
         self._load_checkpoint(self.noise_model, flow_pth_path)
 

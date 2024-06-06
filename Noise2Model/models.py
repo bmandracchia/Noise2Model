@@ -5,7 +5,6 @@ __all__ = ['model_class_dict', 'regist_model', 'get_model_class', 'NMFlow', 'NMF
 
 # %% ../nbs/04_models.ipynb 3
 import os
-from importlib import import_module
 
 from typing import Iterator
 import torch

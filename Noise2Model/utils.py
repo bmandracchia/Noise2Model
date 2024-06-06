@@ -4,11 +4,13 @@
 __all__ = ['attributesFromDict', 'compute_index', 'compute_one_hot', 'StandardNormal', 'sum_except_batch', 'np2tensor',
            'np2tensor_multi', 'tensor2np', 'imwrite_tensor', 'imread_tensor', 'rot_hflip_img', 'psnr', 'ssim',
            'AverageMeter', 'setup_determinism', 'get_gaussian_2d_filter', 'get_mean_2d_filter', 'mean_conv2d',
-           'get_file_name_from_path', 'kl_div_3_data', 'get_histogram', 'kl_div_forward', 'load_numpy_from_raw',
-           'make_predefiend_1d_to_2d', 'save_img', 'FileManager']
+           'get_file_name_from_path', 'get_histogram', 'kl_div_forward', 'kl_div_3_data', 'load_numpy_from_raw',
+           'make_predefiend_1d_to_2d', 'save_img', 'FileManager', 'ProgressMsg', 'Logger', 'bcolors']
 
 # %% ../nbs/09_utils.ipynb 3
 import os
+import time
+import datetime
 import cv2
 from math import log10, exp
 import random
@@ -19,6 +21,8 @@ import torch.nn.functional as F
 
 from torchmetrics.functional.image import structural_similarity_index_measure as structural_similarity
 from torchmetrics.functional.image import peak_signal_noise_ratio
+
+import logging
 
 # %% ../nbs/09_utils.ipynb 4
 def attributesFromDict(d):
@@ -348,6 +352,24 @@ def get_file_name_from_path(path):
 
 
 # %% ../nbs/09_utils.ipynb 30
+def get_histogram(data, bin_edges=None, cnt_regr=1):
+    n = np.prod(data.shape)	
+    hist, _ = np.histogram(data, bin_edges)	
+    return (hist + cnt_regr)/(n + cnt_regr * len(hist))
+
+
+
+# %% ../nbs/09_utils.ipynb 31
+def kl_div_forward(p, q):
+    assert (~(np.isnan(p) | np.isinf(p) | np.isnan(q) | np.isinf(q))).all()	
+    idx = (p > 0)
+    p = p[idx]
+    q = q[idx]
+    return np.sum(p * np.log(p / q))
+
+
+
+# %% ../nbs/09_utils.ipynb 32
 def kl_div_3_data(real_noise, gen_noise, bin_edges=None, left_edge=0.0, right_edge=1.0):
     # Kousha, Shayan, et al. "Modeling srgb camera noise with normalizing flows." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2022.
     # ref) https://github.com/SamsungLabs/Noise2NoiseFlow
@@ -367,24 +389,6 @@ def kl_div_3_data(real_noise, gen_noise, bin_edges=None, left_edge=0.0, right_ed
         klds[h] = kl_div_forward(hists[-1], hists[h])	
 
     return klds[0]
-
-
-
-# %% ../nbs/09_utils.ipynb 31
-def get_histogram(data, bin_edges=None, cnt_regr=1):
-    n = np.prod(data.shape)	
-    hist, _ = np.histogram(data, bin_edges)	
-    return (hist + cnt_regr)/(n + cnt_regr * len(hist))
-
-
-
-# %% ../nbs/09_utils.ipynb 32
-def kl_div_forward(p, q):
-    assert (~(np.isnan(p) | np.isinf(p) | np.isnan(q) | np.isinf(q))).all()	
-    idx = (p > 0)
-    p = p[idx]
-    q = q[idx]
-    return np.sum(p * np.log(p / q))
 
 
 
@@ -466,3 +470,174 @@ class FileManager:
         else:
             save_img(self.get_dir(dir_name), '%s.%s'%(file_name, ext), img)
     
+
+# %% ../nbs/09_utils.ipynb 40
+class ProgressMsg():
+    def __init__(self, max_iter, min_time_interval=0.1):
+        '''
+        Args:
+            max_iter : (max_epoch, max_data_length, ...)
+            min_time_interval (second)
+        '''
+        self.max_iter = max_iter
+        self.min_time_interval = min_time_interval
+
+        self.start_time = time.time()
+        self.progress_time = self.start_time
+
+    def start(self, start_iter):
+
+        assert len(self.max_iter) == len(start_iter), 'start_iter should have same length with max variable.'
+
+        self.start_iter = start_iter
+        self.current_iter = start_iter
+        self.start_time = time.time()
+        self.progress_time = self.start_time
+
+    def calculate_progress(self, current_iter):
+        self.progress_time = time.time()
+
+        assert len(self.max_iter) == len(current_iter), 'current should have same length with max variable.'
+
+        for i in range(len(self.max_iter)):
+            assert current_iter[i] <= self.max_iter[i], 'current value should be less than max value.'
+
+        start_per = 0
+        for i in reversed(range(len(self.max_iter))):
+            start_per += self.start_iter[i]
+            start_per /= self.max_iter[i]
+        start_per *= 100
+
+        pg_per = 0
+        for i in reversed(range(len(self.max_iter))):
+            pg_per += current_iter[i]
+            pg_per /= self.max_iter[i]
+        pg_per *= 100
+
+        pg_per = (pg_per-start_per) / (100-start_per) * 100
+
+        if pg_per != 0:
+            elapsed = time.time() - self.start_time
+            total = 100*elapsed/pg_per
+            remain = total - elapsed
+            elapsed_str = str(datetime.timedelta(seconds=int(elapsed)))
+            remain_str = str(datetime.timedelta(seconds=int(remain)))
+            total_str = str(datetime.timedelta(seconds=int(total)))
+        else:
+            elapsed = time.time() - self.start_time
+            elapsed_str = str(datetime.timedelta(seconds=int(elapsed)))
+            remain_str = 'INF'
+            total_str = 'INF'
+
+        return pg_per, elapsed_str, remain_str, total_str
+
+    def print_prog_msg(self, current_iter):
+        if time.time() - self.progress_time >= self.min_time_interval:
+            pg_per, elapsed_str, remain_str, total_str = self.calculate_progress(current_iter)
+
+            txt = '\033[K>>> progress : %.2f%%, elapsed: %s, remaining: %s, total: %s \t\t\t\t\t' % (pg_per, elapsed_str, remain_str, total_str)
+
+            print(txt, end='\r')
+
+            return txt.replace('\t', '')
+        return
+
+    def get_start_msg(self):
+        return 'Start >>>'
+
+    def get_finish_msg(self):
+        total = time.time() - self.start_time
+        total_str = str(datetime.timedelta(seconds=int(total)))
+        txt = 'Finish >>> (total elapsed time : %s)' % total_str
+        return txt
+
+        
+
+# %% ../nbs/09_utils.ipynb 43
+class Logger(ProgressMsg):
+    def __init__(self, max_iter:tuple=None, log_dir:str=None, log_file_option:str='w', log_lvl:str='note', log_file_lvl:str='info', log_include_time:bool=True):
+        '''
+        Args:
+            session_name (str)
+            max_iter (tuple) : max iteration for progress
+            log_dir (str) : if None, no file out for logging
+            log_file_option (str) : 'w' or 'a'
+            log_lvl (str) : 'debug' < 'note' < 'info' < 'highlight' < 'val'
+            log_include_time (bool)
+        '''
+        self.lvl_list = ['debug', 'note', 'info', 'highlight', 'val']
+        self.lvl_color = [bcolors.FAIL, None, None, bcolors.WARNING, bcolors.OKGREEN]
+
+        assert log_file_option in ['w', 'a']
+        assert log_lvl in self.lvl_list
+        assert log_file_lvl in self.lvl_list
+
+        # init progress message class
+        ProgressMsg.__init__(self, max_iter)
+
+        # log setting
+        self.log_dir = log_dir
+        self.log_lvl      = self.lvl_list.index(log_lvl)
+        self.log_file_lvl = self.lvl_list.index(log_file_lvl)
+        self.log_include_time = log_include_time
+        
+        # init logging
+        if self.log_dir is not None:
+            logfile_time = datetime.datetime.now().strftime('%m-%d-%H-%M')
+            self.log_file = open(os.path.join(log_dir, 'log_%s.log'%logfile_time), log_file_option, encoding='utf-8')
+            self.val_file = open(os.path.join(log_dir, 'validation_%s.log'%logfile_time), log_file_option, encoding='utf-8')
+
+    def _print(self, txt, lvl_n, end):
+        txt = str(txt)
+        if self.log_lvl <= lvl_n:
+            if self.lvl_color[lvl_n] is not None:
+                print('\033[K'+ self.lvl_color[lvl_n] + txt + bcolors.ENDC, end=end)
+            else:
+                print('\033[K'+txt, end=end)
+        if self.log_file_lvl <= lvl_n:
+            self.write_file(txt)
+
+    def debug(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('debug'), end)
+    
+    def note(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('note'), end)
+
+    def info(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('info'), end)
+
+    def highlight(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('highlight'), end)
+
+    def val(self, txt, end=None):
+        self._print(txt, self.lvl_list.index('val'), end)
+        if self.log_dir is not None:
+            self.val_file.write(txt+'\n')
+            self.val_file.flush()
+
+    def write_file(self, txt):
+        if self.log_dir is not None:
+            if self.log_include_time:
+                time = datetime.datetime.now().strftime('%H:%M:%S')
+                txt = "[%s] "%time + txt
+            self.log_file.write(txt+'\n')
+            self.log_file.flush()
+
+    def clear_screen(self):
+        if os.name == 'nt': 
+            os.system('cls') 
+        else: 
+            os.system('clear') 
+
+# https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-python
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+

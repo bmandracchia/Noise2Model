@@ -59,7 +59,6 @@ class compute_one_hot():
             for i, v in enumerate(value):
                 idx += torch.where(kwargs[key] == v, i, 0.0)
             idx_one_hot = F.one_hot(idx.to(torch.int64), num_classes=value.shape[0]).to(torch.float32)
-            print(key, ': ', idx_one_hot)
             embedding = torch.cat((embedding, idx_one_hot), dim=1)
 
         return embedding

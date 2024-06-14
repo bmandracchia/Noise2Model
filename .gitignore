@@ -3,6 +3,10 @@ _proc/
 _data/
 _saved_models/
 
+./startup.sh
+./iscudaavailable.py
+./n2m.yml
+
 *.bak
 .gitattributes
 .last_checked

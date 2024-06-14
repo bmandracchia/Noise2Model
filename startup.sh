@@ -1,2 +1,2 @@
 conda activate n2m
-python iscudaavailable.py
+python ~/Code/Noise2Model/iscudaavailable.py

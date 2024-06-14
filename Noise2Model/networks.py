@@ -190,6 +190,7 @@ class _Net_recurse(nn.Module):
         return x_conv_less
 
 # %% ../nbs/03_nets.ipynb 16
+@regist_network
 class UNet(nn.Module):
     def __init__(self,
                  depth=4,						# depth of the UNet network

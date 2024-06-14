@@ -45,9 +45,15 @@ class NMFlow(nn.Module):
         pre_arch="UD",
         arch="NE|SAL|SDL|CL2|SAL|SDL|CL2",
         device='cuda',
+        codes=None
     ):
         super(NMFlow, self).__init__()
         attributesFromDict(locals()) # stores all the input parameters in self
+        
+        if codes==None:
+            self.codes= {
+                'camera': torch.tensor([2], dtype=torch.float32).to(device)
+            }
         
         self.pre_bijectors = list()
         pre_arch_lyrs = pre_arch.split('|')
@@ -79,7 +85,8 @@ class NMFlow(nn.Module):
             case "CL2":
                 return get_flow_layer("ConditionalLinearExp2")(
                     in_ch=self.internal_channels(),
-                    device=self.device
+                    device=self.device,
+                    codes=self.codes,
                 )
                 
             case "SDL":
@@ -98,7 +105,8 @@ class NMFlow(nn.Module):
                         feats=self.conv_net_feats
                     ),
                     in_ch=self.internal_channels(),
-                    device=self.device
+                    device=self.device,
+                    codes=self.codes,
                 )
                 
             case "SAL":
@@ -118,6 +126,7 @@ class NMFlow(nn.Module):
                         feats=self.conv_net_feats
                     ),
                     in_ch=self.internal_channels(),
+                    codes=self.codes,
                     device=self.device
                 )
             

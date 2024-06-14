@@ -17,6 +17,7 @@ import random
 import numpy as np
 
 import torch 
+from torch import nn
 import torch.nn.functional as F
 
 from torchmetrics.functional.image import structural_similarity_index_measure as structural_similarity
@@ -41,7 +42,6 @@ class compute_index():
             idx = idx * len(value)
             for i, v in enumerate(value):
                 idx += torch.where(kwargs[key] == v, i, 0.0)
-
         return idx
     
     def __call__(self, b, **kwargs):
@@ -67,12 +67,6 @@ class compute_one_hot():
         return self._compute_one_hot(b, **kwargs)
 
 # %% ../nbs/09_utils.ipynb 12
-import math
-import torch
-from torch import nn
-
-
-# %% ../nbs/09_utils.ipynb 13
 class StandardNormal(nn.Module):
     """A multivariate Normal with zero mean and unit covariance."""
 
@@ -100,7 +94,7 @@ def sum_except_batch(x, num_dims=1):
     '''
     return x.reshape(*x.shape[:num_dims], -1).sum(-1)
 
-# %% ../nbs/09_utils.ipynb 15
+# %% ../nbs/09_utils.ipynb 14
 def np2tensor(n:np.array):
     '''
     transform numpy array (image) to torch Tensor
@@ -119,7 +113,7 @@ def np2tensor(n:np.array):
     
 
 
-# %% ../nbs/09_utils.ipynb 18
+# %% ../nbs/09_utils.ipynb 17
 def np2tensor_multi(n:np.array):
     t = None
     if len(n) <= 1: # single stacked image
@@ -131,7 +125,7 @@ def np2tensor_multi(n:np.array):
     return t
 
 
-# %% ../nbs/09_utils.ipynb 19
+# %% ../nbs/09_utils.ipynb 18
 def tensor2np(t:torch.Tensor):
     '''
     transform torch Tensor to numpy having opencv image form.
@@ -153,7 +147,7 @@ def tensor2np(t:torch.Tensor):
         raise RuntimeError('wrong tensor dimensions : %s'%(t.shape,))
 
 
-# %% ../nbs/09_utils.ipynb 20
+# %% ../nbs/09_utils.ipynb 19
 def imwrite_tensor(t, name='test.png'):
     cv2.imwrite('./%s'%name, tensor2np(t.cpu()))
 
@@ -161,7 +155,7 @@ def imread_tensor(name='test'):
     return np2tensor(cv2.imread('./%s'%name))
 
 
-# %% ../nbs/09_utils.ipynb 21
+# %% ../nbs/09_utils.ipynb 20
 def rot_hflip_img(img:torch.Tensor, rot_times:int=0, hflip:int=0):
     '''
     rotate '90 x times degree' & horizontal flip image 
@@ -198,7 +192,7 @@ def rot_hflip_img(img:torch.Tensor, rot_times:int=0, hflip:int=0):
             return img.transpose(b+1,b+2)
    
 
-# %% ../nbs/09_utils.ipynb 22
+# %% ../nbs/09_utils.ipynb 21
 def psnr(x, y, mask=None, max_val=1.):
     if max_val is None : max_val = 1.
     if mask is None:
@@ -208,7 +202,7 @@ def psnr(x, y, mask=None, max_val=1.):
     return 10 * log10(max_val**2 / mse.item())
 
 
-# %% ../nbs/09_utils.ipynb 23
+# %% ../nbs/09_utils.ipynb 22
 def ssim(img1, img2, data_range):
     '''
     image value range : [0 - data_range]
@@ -233,7 +227,7 @@ def ssim(img1, img2, data_range):
     return structural_similarity(img1, img2, channel_axis=-1, data_range=data_range)
 
 
-# %% ../nbs/09_utils.ipynb 24
+# %% ../nbs/09_utils.ipynb 23
 class AverageMeter(object):
     """
     Computes and stores the average and current value.
@@ -255,7 +249,7 @@ class AverageMeter(object):
     
 
 
-# %% ../nbs/09_utils.ipynb 25
+# %% ../nbs/09_utils.ipynb 24
 def setup_determinism(seed):
     torch.backends.cudnn.deterministic = False
     torch.backends.cudnn.benchmark = False
@@ -265,7 +259,7 @@ def setup_determinism(seed):
 
 
 
-# %% ../nbs/09_utils.ipynb 26
+# %% ../nbs/09_utils.ipynb 25
 def get_gaussian_2d_filter(window_size, sigma, channel=1, device=torch.device('cpu')):
     '''
     return 2d gaussian filter window as tensor form
@@ -283,7 +277,7 @@ def get_gaussian_2d_filter(window_size, sigma, channel=1, device=torch.device('c
 
 
 
-# %% ../nbs/09_utils.ipynb 27
+# %% ../nbs/09_utils.ipynb 26
 def get_mean_2d_filter(window_size, channel=1, device=torch.device('cpu')):
     '''
     return 2d mean filter as tensor form
@@ -295,7 +289,7 @@ def get_mean_2d_filter(window_size, channel=1, device=torch.device('cpu')):
     return window.expand(channel, 1, window_size, window_size)
 
 
-# %% ../nbs/09_utils.ipynb 28
+# %% ../nbs/09_utils.ipynb 27
 def mean_conv2d(x, window_size=None, window=None, filter_type='gau', sigma=None, keep_sigma=False, padd=True):
     '''
     color channel-wise 2d mean or gaussian convolution
@@ -334,7 +328,7 @@ def mean_conv2d(x, window_size=None, window=None, filter_type='gau', sigma=None,
     
 
 
-# %% ../nbs/09_utils.ipynb 29
+# %% ../nbs/09_utils.ipynb 28
 def get_file_name_from_path(path):
     if '/' in path : name = path.split('/')[-1].split('.')[:-1]
     elif '\\' in path: name = path.split('\\')[-1].split('.')[:-1]
@@ -350,7 +344,7 @@ def get_file_name_from_path(path):
 
 
 
-# %% ../nbs/09_utils.ipynb 30
+# %% ../nbs/09_utils.ipynb 29
 def get_histogram(data, bin_edges=None, cnt_regr=1):
     n = np.prod(data.shape)	
     hist, _ = np.histogram(data, bin_edges)	
@@ -358,7 +352,7 @@ def get_histogram(data, bin_edges=None, cnt_regr=1):
 
 
 
-# %% ../nbs/09_utils.ipynb 31
+# %% ../nbs/09_utils.ipynb 30
 def kl_div_forward(p, q):
     assert (~(np.isnan(p) | np.isinf(p) | np.isnan(q) | np.isinf(q))).all()	
     idx = (p > 0)
@@ -368,7 +362,7 @@ def kl_div_forward(p, q):
 
 
 
-# %% ../nbs/09_utils.ipynb 32
+# %% ../nbs/09_utils.ipynb 31
 def kl_div_3_data(real_noise, gen_noise, bin_edges=None, left_edge=0.0, right_edge=1.0):
     # Kousha, Shayan, et al. "Modeling srgb camera noise with normalizing flows." Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2022.
     # ref) https://github.com/SamsungLabs/Noise2NoiseFlow
@@ -391,14 +385,14 @@ def kl_div_3_data(real_noise, gen_noise, bin_edges=None, left_edge=0.0, right_ed
 
 
 
-# %% ../nbs/09_utils.ipynb 33
+# %% ../nbs/09_utils.ipynb 32
 def load_numpy_from_raw(path, dtype='float32'):
     fid = open(path, "rb")
     return np.fromfile(fid, dtype=dtype)
 
 
 
-# %% ../nbs/09_utils.ipynb 34
+# %% ../nbs/09_utils.ipynb 33
 def make_predefiend_1d_to_2d(arr):
     predefined_sizes = [(3072,2560), (3072,3072), (9216,3072), (6144,3072)] # H, W
     assert len(arr.shape) == 1
@@ -410,7 +404,7 @@ def make_predefiend_1d_to_2d(arr):
 
 
 
-# %% ../nbs/09_utils.ipynb 35
+# %% ../nbs/09_utils.ipynb 34
 def save_img(dir_name, file_name, img):
     path = os.path.join(dir_name, file_name)
     if 'raw' in path[-3:]:
@@ -430,7 +424,7 @@ def save_img(dir_name, file_name, img):
             cv2.imwrite(path, img)
 
 
-# %% ../nbs/09_utils.ipynb 37
+# %% ../nbs/09_utils.ipynb 36
 class FileManager:
     def __init__(self, session_name, output_path=None):
         if output_path is None:
@@ -470,7 +464,7 @@ class FileManager:
             save_img(self.get_dir(dir_name), '%s.%s'%(file_name, ext), img)
     
 
-# %% ../nbs/09_utils.ipynb 40
+# %% ../nbs/09_utils.ipynb 39
 class ProgressMsg():
     def __init__(self, max_iter, min_time_interval=0.1):
         '''
@@ -552,7 +546,7 @@ class ProgressMsg():
 
         
 
-# %% ../nbs/09_utils.ipynb 43
+# %% ../nbs/09_utils.ipynb 42
 class Logger(ProgressMsg):
     def __init__(self, max_iter:tuple=None, log_dir:str=None, log_file_option:str='w', log_lvl:str='note', log_file_lvl:str='info', log_include_time:bool=True):
         '''

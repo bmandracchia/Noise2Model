@@ -319,7 +319,7 @@ class BaseTrainer():
                     else:
                         data[dataset_key][key] = data[dataset_key][key].cuda()
 
-        # forward, cal losses, backward)
+        # forward, call losses, backward
         losses, tmp_info = self._forward_fn(self.model, self.loss, data)
         losses   = {key: losses[key].mean()   for key in losses}
         tmp_info = {key: tmp_info[key].mean() for key in tmp_info}
@@ -1028,7 +1028,7 @@ class NoiseFlowGANTrainer(BaseTrainer):
                     else:
                         data[dataset_key][key] = data[dataset_key][key].cuda()
 
-        # forward, cal losses, backward)
+        # forward, call losses, backward
         # generator
         losses = dict()
         tmp_infos = dict()

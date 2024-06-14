@@ -2,7 +2,7 @@
 
 # %% auto 0
 __all__ = ['model_class_dict', 'regist_model', 'get_model_class', 'NMFlow', 'NMFlowDenoiser', 'NMFlowGANGenerator',
-           'NMFlowGANCritic', 'Discriminator_96', 'NMFlowGANDenoiser']
+           'NMFlowGANCritic', 'Discriminator_96', 'NMFlowGANDenoiser', 'DnCNNFlowGAN']
 
 # %% ../nbs/04_models.ipynb 3
 import os
@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 from .layers import get_flow_layer
-from .networks import get_network_class, network_class_dict
+from .networks import get_network_class, UNet, DnCNN
 from .utils import StandardNormal, attributesFromDict
 
 
@@ -386,3 +386,22 @@ class NMFlowGANDenoiser(nn.Module):
         n_scaled = torch.clip(n_scaled, 0., 1.)
         n_scaled = n_scaled * (2**num_bits) # n_scaled: 0 ~ denoiser's max GL.
         return n_scaled
+
+# %% ../nbs/04_models.ipynb 18
+@regist_model
+class DnCNNFlowGAN(NMFlowGANDenoiser):
+    def __init__(
+        self,
+        kwargs_dncnn,
+        kwargs_unet,
+        kwargs_flow,
+        pretrained_path,
+        num_bits=8
+        ):
+        super().__init__(
+            DnCNN(**kwargs_dncnn),
+            kwargs_flow,
+            kwargs_unet,
+            pretrained_path,
+            num_bits,
+        )

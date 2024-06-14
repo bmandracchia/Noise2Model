@@ -7,11 +7,11 @@ BASE:
 
 DATA:
   train_dataset: 'SIDD_HDF'
-  train_dataset_path: './data/HDF5_confocal_s96_o08/noise_gen/train'
+  train_dataset_path: '../_data/HDF5_confocal_s96_o08/noise_gen/train'
   validation_dataset: 'SIDD_HDF'
-  validation_dataset_path: './data/HDF5_confocal_s96_o08/noise_gen/test'
+  validation_dataset_path: '../_data/HDF5_confocal_s96_o08/noise_gen/test'
   test_dataset: 'SIDD_HDF'
-  test_dataset_path: './data/HDF5_confocal_s64_o08/noise_gen/test'
+  test_dataset_path: '../_data/HDF5_confocal_s64_o08/noise_gen/test'
   batch_size: 2
   TRAIN_DATALOADER:
     n_repeat: 1

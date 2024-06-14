@@ -53,7 +53,7 @@ class compute_one_hot():
         attributesFromDict(locals( ))
       
     def _compute_one_hot(self, b, **kwargs):
-        embedding = torch.tensor([])
+        embedding = torch.tensor([]).to(self.device)
         for key, value in self.codes.items():
             idx = torch.zeros([b], device=self.device, dtype=torch.float32)
             for i, v in enumerate(value):

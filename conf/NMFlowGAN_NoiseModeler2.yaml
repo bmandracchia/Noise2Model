@@ -24,15 +24,15 @@ MODEL:
   input_type: ['noisy', 'clean', 'kwargs']
   test_input_type: ['noisy', 'clean', 'kwargs']
   NMFLOW:
-    in_ch: 3
+    in_ch: 1
     num_bits: 8
     pre_arch: "UD" 
     arch: "NE|SAL|SDL|CL2|SAL|SDL|CL2"
     conv_net_feats: 16
   UNET:
-      in_channels: 3
-      n_classes: 3
-      depth: 5
+      in_channels: 1
+      n_classes: 1
+      depth: 3
       wf: 6
       padding: True
       batch_norm: False

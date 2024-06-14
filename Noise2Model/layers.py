@@ -47,16 +47,15 @@ class UniformDequantization(nn.Module):
             name (str): Name of the module (default: 'uniform_dequantization').
         """
         super(UniformDequantization, self).__init__()
-        self.alpha = alpha
-        self.num_bits = num_bits
+        attributesFromDict(locals()) # stores all the input parameters in self
+        
         self.quantization_bins = 2 ** num_bits
         # Precompute the log-determinant of the Jacobian per dimension
         self.register_buffer(
             'ldj_per_dim',
             - num_bits * torch.log(torch.tensor(2.0, device=device, dtype=torch.float))
         )
-        self.name = name
-
+        
     def _ldj(self, shape):
         """
         Computes the log-determinant of the Jacobian for a given shape.
@@ -241,9 +240,7 @@ class ConditionalLinear(nn.Module):
             name (str): Name of the module (default: 'linear_transformation').
         """
         super(ConditionalLinear, self).__init__()
-        self.name = name
-        self.device = device
-        self.codes = codes
+        attributesFromDict(locals()) # stores all the input parameters in self
 
         # Learnable parameters
         self.par_num = 1
@@ -345,9 +342,7 @@ class ConditionalLinearExp2(nn.Module):
             name (str): Name of the module (default: 'linear_transformation_exp2').
         """
         super(ConditionalLinearExp2, self).__init__()
-        self.name = name
-        self.device = device 
-        self.codes = codes
+        attributesFromDict(locals()) # stores all the input parameters in self
 
         # Learnable parameters
         self.par_num = 1
@@ -579,6 +574,8 @@ class StructureAwareConditionalLinearLayer(nn.Module):
             name (str): Name of the module (default: 'structure_aware_condition_linear').
         """
         super(StructureAwareConditionalLinearLayer, self).__init__()
+        self.name = name
+        self.device = device 
         self.in_ch = in_ch
         self.codes = codes
 
@@ -845,7 +842,7 @@ class NoiseExtraction(nn.Module):
         """
         super(NoiseExtraction, self).__init__()
         self.name = name
-        self.device = device
+        self.device = device 
 
     def _inverse(self, z, **kwargs):
         """

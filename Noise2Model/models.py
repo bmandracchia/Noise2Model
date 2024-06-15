@@ -397,7 +397,7 @@ class NMFlowGANGenerator(nn.Module):
         y = torch.clip(y, 0, 2**self.num_bits)
         return y
 
-# %% ../nbs/04_models.ipynb 16
+# %% ../nbs/04_models.ipynb 15
 @regist_model
 class NMFlowGANCritic(nn.Module):
     def __init__(
@@ -415,7 +415,7 @@ class NMFlowGANCritic(nn.Module):
          return self.critic(x_scaled)
 
 
-# %% ../nbs/04_models.ipynb 17
+# %% ../nbs/04_models.ipynb 16
 class Discriminator_96(nn.Module):
     """Discriminator with 96x96 input, refer to Kai Zhang, https://github.com/cszn/KAIR"""
     def __init__(self, in_nc=3, nc=64):
@@ -456,7 +456,7 @@ class Discriminator_96(nn.Module):
         return x
     
 
-# %% ../nbs/04_models.ipynb 19
+# %% ../nbs/04_models.ipynb 18
 class NMFlowGANDenoiser(nn.Module):
     def __init__(
             self,
@@ -528,7 +528,7 @@ class NMFlowGANDenoiser(nn.Module):
         n_scaled = n_scaled * (2**num_bits) # n_scaled: 0 ~ denoiser's max GL.
         return n_scaled
 
-# %% ../nbs/04_models.ipynb 20
+# %% ../nbs/04_models.ipynb 19
 @regist_model
 class DnCNNFlowGAN(NMFlowGANDenoiser):
     def __init__(

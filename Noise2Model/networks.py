@@ -348,12 +348,12 @@ class UNetUpBlock(nn.Module):
     def forward(self, x, bridge):
         up = self.up(x)
         crop1 = self.center_crop(bridge, up.shape[2:])
-        out = torch.cat([up, crop1], 1)
+        out = torch_cat([up, crop1], 1)
         out = self.conv_block(out)
 
         return out
 
-# %% ../nbs/03_nets.ipynb 21
+# %% ../nbs/03_nets.ipynb 22
 class ResidualBlock(nn.Module):
     """A general-purpose residual block. Works only with 1-dim inputs."""
 
@@ -402,7 +402,7 @@ class ResidualBlock(nn.Module):
         temps = self.linear_layers[1](temps)
         if context is not None:
             temps = F.glu(
-                torch.cat(
+                torch_cat(
                     (temps, self.context_layer(context)),
                     dim=1
                 ),
@@ -411,7 +411,7 @@ class ResidualBlock(nn.Module):
         return inputs + temps
 
 
-# %% ../nbs/03_nets.ipynb 22
+# %% ../nbs/03_nets.ipynb 23
 @regist_network
 class ResidualNet(nn.Module):
     """A general-purpose residual network. Works only with 1-dim inputs."""
@@ -448,7 +448,7 @@ class ResidualNet(nn.Module):
             temps = self.initial_layer(inputs)
         else:
             temps = self.initial_layer(
-                torch.cat((inputs, context), dim=1)
+                torch_cat((inputs, context), dim=1)
             )
         for block in self.blocks:
             temps = block(temps, context=context)

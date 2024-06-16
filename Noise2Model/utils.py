@@ -41,7 +41,7 @@ class compute_index():
         for key, value in self.codes.items():
             idx = idx * len(value)
             for i, v in enumerate(value):
-                idx += torch.where(kwargs[key] == v, i, 0.0)
+                idx += torch.where(kwargs[key].to(self.device) == v, i, 0.0)
         return idx
     
     def __call__(self, b, **kwargs):

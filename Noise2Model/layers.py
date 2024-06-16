@@ -624,8 +624,8 @@ class SignalDependentConditionalLinear(nn.Module):
         n = 0
         for k,v in codes.items():
             n += len(v)
-        self.meta_encoder = meta_encoder(n, self.encode_ch)
-        self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2) # scale, bias per channels
+        self.meta_encoder = meta_encoder(n, self.encode_ch).to(device)
+        self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2).to(device) # scale, bias per channels
         
     def _computeOneHot(self, b, **kwargs):
         return compute_one_hot(self.codes, device=self.device)(b, **kwargs)

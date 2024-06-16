@@ -745,8 +745,8 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         n = 0
         for k,v in codes.items():
             n += len(v)
-        self.meta_encoder = meta_encoder(n, in_ch * 2)
-        self.structure_encoder = structure_encoder(in_ch, in_ch * 2)
+        self.meta_encoder = meta_encoder(n, in_ch * 2).to(device)
+        self.structure_encoder = structure_encoder(in_ch, in_ch * 2).to(device)
         
     def _computeOneHot(self, b, **kwargs):
         return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
@@ -814,7 +814,7 @@ class StructureAwareConditionalLinearLayer(nn.Module):
 
 
 
-# %% ../nbs/02_layers.ipynb 33
+# %% ../nbs/02_layers.ipynb 34
 @regist_layer
 class NoiseExtraction(nn.Module):
     """
@@ -876,7 +876,7 @@ class NoiseExtraction(nn.Module):
         return z, ldj
 
 
-# %% ../nbs/02_layers.ipynb 35
+# %% ../nbs/02_layers.ipynb 37
 # class Gain(Flow):
 #     """
 #     Gain & Offset flow layer

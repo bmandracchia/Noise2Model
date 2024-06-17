@@ -12,7 +12,7 @@ DATA:
   validation_dataset_path: '../_data/HDF5_confocal_s96_o08/noise_gen/test'
   test_dataset: 'SIDD_HDF'
   test_dataset_path: '../_data/HDF5_confocal_s64_o08/noise_gen/test'
-  batch_size: 2
+  batch_size: 128
   TRAIN_DATALOADER:
     n_repeat: 1
   VALIDATION_DATALOADER:
@@ -48,7 +48,7 @@ TRAIN:
   init_lr: 1e-4
   loss: '1.0*NLLLoss+0.5*GANLoss'
   tmp_info: ['std_z', 'real_sub_fake']
-  max_epochs: 40
+  max_epochs: 1
   NOISE_GENERATOR_TRAINER:
     generator_iter_step: 5
     critic_noise: True

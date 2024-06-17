@@ -6,6 +6,7 @@ BASE:
   model: 'nmflowgan'
 
 DATA:
+  output_path: '../_saved_models'
   train_dataset: 'SIDD_HDF'
   train_dataset_path: '../_data/HDF5_confocal_s96_o08/noise_gen/train'
   validation_dataset: 'SIDD_HDF'
@@ -27,7 +28,7 @@ MODEL:
     in_ch: 1
     num_bits: 8
     pre_arch: "UD" 
-    arch: "NE"
+    arch: "NE|SAL|SDL|CL2|SAL|SDL|CL2"
     conv_net_feats: 16
   UNET:
       in_channels: 1

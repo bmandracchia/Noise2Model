@@ -235,7 +235,7 @@ class NMFlowDenoiser(nn.Module):
         return n_scaled
 
 # %% ../nbs/04_models.ipynb 12
-# @regist_model
+@regist_model
 class NMFlowGANGenerator(nn.Module):
     def __init__(
         self,

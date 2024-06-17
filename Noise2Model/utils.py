@@ -12,7 +12,7 @@ import os
 import time
 import datetime
 import cv2
-from math import log10, exp
+from math import log10, exp, log, pi
 import random
 import numpy as np
 
@@ -76,7 +76,7 @@ class StandardNormal(nn.Module):
 
     def log_prob(self, x):
         # https://www.statlect.com/fundamentals-of-statistics/normal-distribution-maximum-likelihood
-        log_base =  - 0.5 * math.log(2 * math.pi)
+        log_base =  - 0.5 * log(2 * pi)
         log_inner = - 0.5 * x**2
         return sum_except_batch(log_base+log_inner)
 

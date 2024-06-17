@@ -40,7 +40,7 @@ MODEL:
       residual: True
       drop_p: 0.0
   NMFLOWGAN_CRITIC:
-    in_ch: 6
+    in_ch: 2
     nc: 64
     num_bits: 8
 

@@ -259,7 +259,7 @@ class NMFlowGANGenerator(nn.Module):
         conv_net_feats=16,
         pre_arch="UD",
         arch="NE|SAL|SDL|CL2|SAL|SDL|CL2",
-        device='cpu',
+        device='cuda',
         codes=None
     ):
         attributesFromDict(locals()) # stores all the input parameters in self

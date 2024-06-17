@@ -235,7 +235,7 @@ class NMFlowDenoiser(nn.Module):
         return n_scaled
 
 # %% ../nbs/04_models.ipynb 12
-@regist_model
+# @regist_model
 class NMFlowGANGenerator(nn.Module):
     def __init__(
         self,
@@ -248,7 +248,7 @@ class NMFlowGANGenerator(nn.Module):
         )
         self.generator = UNet(
              **kwargs_unet
-        )  
+        ).to(self.device)
          
     def _flow_init(
         self,
@@ -266,7 +266,7 @@ class NMFlowGANGenerator(nn.Module):
         
         if codes==None:
             self.codes= {
-                'camera': torch.tensor([2], dtype=torch.float32).to(device)
+                'camera': torch.tensor([2], dtype=torch.float32, device=device)
             }
         
         self.pre_bijectors = list()
@@ -370,7 +370,7 @@ class NMFlowGANGenerator(nn.Module):
                 kwargs['clean'], _ = bijector._forward_and_log_det_jacobian(kwargs['clean'], **kwargs)
 
         b,_,h,w = kwargs['clean'].shape
-        x = self.dist.sample((b,self.internal_channels(),h,w))
+        x = self.dist.sample((b,self.internal_channels(),h,w)).to(self.device) ### this should be fixed in the StandardNormal class
         for bijector in reversed(self.bijectors):
             x = bijector._inverse(x, **kwargs)
 

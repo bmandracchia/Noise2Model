@@ -111,7 +111,7 @@ def _mse(x, y, level=2):
 @regist_loss
 class L1Loss(nn.Module):
     def forward(self, input_data, model_output, data, module):
-        fx = model_output['recon']
+        fx = model_output['z']
         y = data['clean']
         return _mse(fx, y, level=1)
 
@@ -119,7 +119,7 @@ class L1Loss(nn.Module):
 @regist_loss
 class L2Loss(nn.Module):
     def forward(self, input_data, model_output, data, module):
-        fx = model_output['recon']
+        fx = model_output['z']
         y = data['clean']
         return _mse(fx, y, level=2)
 
@@ -214,4 +214,5 @@ class real_sub_fake(nn.Module):
         super().__init__()
 
     def forward(self, input_data, model_output, data, module):
+        print('debugging: ', input_data[-1]['clean'].shape) # to be removed
         return model_output['critic_real'].mean() - model_output['critic_fake'].mean()

@@ -14,7 +14,7 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
-from .utils import attributesFromDict, compute_index, compute_one_hot
+from .utils import store_attr, compute_index, compute_one_hot
 
 # %% ../nbs/02_layers.ipynb 5
 flow_layer_class_dict = {}
@@ -210,7 +210,7 @@ class UniformDequantization(nn.Module):
             name (str): Name of the module (default: 'uniform_dequantization').
         """
         super(UniformDequantization, self).__init__()
-        attributesFromDict(locals()) # stores all the input parameters in self
+        store_attr() # stores all the input parameters in self
         
         self.quantization_bins = 2 ** num_bits
         # Precompute the log-determinant of the Jacobian per dimension
@@ -403,7 +403,7 @@ class ConditionalLinear(nn.Module):
             name (str): Name of the module (default: 'linear_transformation').
         """
         super(ConditionalLinear, self).__init__()
-        attributesFromDict(locals()) # stores all the input parameters in self
+        store_attr() # stores all the input parameters in self
 
         # Learnable parameters
         self.par_num = 1
@@ -505,7 +505,7 @@ class ConditionalLinearExp2(nn.Module):
             name (str): Name of the module (default: 'linear_transformation_exp2').
         """
         super(ConditionalLinearExp2, self).__init__()
-        attributesFromDict(locals()) # stores all the input parameters in self
+        store_attr() # stores all the input parameters in self
 
         # Learnable parameters
         self.par_num = 1

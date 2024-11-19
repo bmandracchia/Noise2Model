@@ -13,7 +13,7 @@ DATA:
   validation_dataset_path: '../_data/HDF5_confocal_s96_o08/noise_gen/test'
   test_dataset: 'SIDD_HDF'
   test_dataset_path: '../_data/HDF5_confocal_s64_o08/noise_gen/test'
-  batch_size: 128
+  batch_size: 3
   TRAIN_DATALOADER:
     n_repeat: 1
   VALIDATION_DATALOADER:

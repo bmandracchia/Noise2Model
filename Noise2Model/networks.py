@@ -10,7 +10,7 @@ from torch import cat as torch_cat
 import torch.nn as nn
 from torch.nn import functional as F, init
 
-from .utils import attributesFromDict
+from .utils import store_attr
 
 import os
 from importlib import import_module
@@ -194,7 +194,7 @@ class MyUNet(nn.Module):
         last_activation = getattr(F, f"{activation.lower()}") if last_activation == None else getattr(
             F, f"{last_activation.lower()}")
         activation = getattr(nn, f"{activation}")
-        attributesFromDict(locals())		# stores all the input parameters in self
+        store_attr()		# stores all the input parameters in self
 
         self.net_recurse = _Net_recurse(depth, mult_chan, in_channels, kernel_size, ndim,
                                         n_conv_per_depth, activation, norm_type, dropout, pool, pool_size)

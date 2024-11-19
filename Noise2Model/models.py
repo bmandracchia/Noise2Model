@@ -44,7 +44,7 @@ class NMFlow(nn.Module):
         conv_net_feats=16,
         pre_arch="UD",
         arch="NE|SAL|SDL|CL2|SAL|SDL|CL2",
-        device='cpu',
+        device='cuda',
         codes=None
     ):
         super(NMFlow, self).__init__()
@@ -157,6 +157,7 @@ class NMFlow(nn.Module):
 
         b,_,h,w = kwargs['clean'].shape
         x = self.dist.sample((b,self.internal_channels(),h,w))
+        print(x.device)
         for bijector in reversed(self.bijectors):
             x = bijector._inverse(x, **kwargs)
 
@@ -235,169 +236,7 @@ class NMFlowDenoiser(nn.Module):
         return n_scaled
 
 # %% ../nbs/04_models.ipynb 12
-# @regist_model
-# class NMFlowGANGenerator(nn.Module):
-#     def __init__(
-#         self,
-#         kwargs_unet,
-#         kwargs_flow,
-#     ):
-#         super(NMFlowGANGenerator, self).__init__()
-#         self._flow_init(
-#             **kwargs_flow
-#         )
-#         self.generator = UNet(
-#              **kwargs_unet
-#         ).to(self.device)
-         
-#     def _flow_init(
-#         self,
-#         in_ch=1,
-#         ch_exp_coef = 1.,
-#         width_exp_coef = 2.,
-#         num_bits=16,
-#         conv_net_feats=16,
-#         pre_arch="UD",
-#         arch="NE|SAL|SDL|CL2|SAL|SDL|CL2",
-#         device='cuda',
-#         codes=None
-#     ):
-#         store_attr() # stores all the input parameters in self
-        
-#         if codes==None:
-#             self.codes= {
-#                 'camera': torch.tensor([2], dtype=torch.float32, device=device)
-#             }
-        
-#         self.pre_bijectors = list()
-#         pre_arch_lyrs = pre_arch.split('|')
-#         for lyr in pre_arch_lyrs:
-#             self.pre_bijectors.append(self.get_flow_layer(lyr))
-#         self.pre_bijectors = nn.Sequential(*self.pre_bijectors)
-
-#         self.bijectors = list()
-#         arch_lyrs = arch.split('|')
-#         for lyr in arch_lyrs:
-#             self.bijectors.append(self.get_flow_layer(lyr))
-#         self.bijectors = nn.Sequential(*self.bijectors)
-#         self.dist = StandardNormal()
-
-#     def internal_channels(self):
-#         return int(self.in_ch * self.ch_exp_coef)
-    
-#     def internal_widths(self):
-#         return int(self.in_ch * self.width_exp_coef)
-
-#     def get_flow_layer(self, name):
-#         match name:
-#             case "UD":
-#                 return get_flow_layer("UniformDequantization")(device=self.device, num_bits=self.num_bits)
-            
-#             case "NE":
-#                 return get_flow_layer("NoiseExtraction")(device=self.device)    
-            
-#             case "CL2":
-#                 return get_flow_layer("ConditionalLinearExp2")(
-#                     in_ch=self.internal_channels(),
-#                     device=self.device,
-#                     codes=self.codes,
-#                 )
-                
-#             case "SDL":
-#                 return get_flow_layer("SignalDependentConditionalLinear")(
-#                     meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
-#                         in_features=in_features,
-#                         out_features=out_features,
-#                         hidden_features=5,
-#                         num_blocks=3,
-#                         use_batch_norm=True,
-#                         dropout_probability=0.0
-#                     ),
-#                     scale_and_bias=lambda in_features, out_features: get_flow_layer("PointwiseConvs")(
-#                         in_features=in_features,
-#                         out_features=out_features,
-#                         feats=self.conv_net_feats
-#                     ),
-#                     in_ch=self.internal_channels(),
-#                     device=self.device,
-#                     codes=self.codes,
-#                 )
-                
-#             case "SAL":
-#                 return get_flow_layer("StructureAwareConditionalLinearLayer")(
-#                     meta_encoder=lambda in_features, out_features: get_network_class("ResidualNet")(
-#                         in_features=in_features,
-#                         out_features=out_features,
-#                         hidden_features=5,
-#                         num_blocks=3,
-#                         use_batch_norm=True,
-#                         dropout_probability=0.0
-#                     ),
-#                     structure_encoder=lambda in_features, out_features: get_flow_layer("SpatialConvs")(
-#                         in_features=in_features,
-#                         out_features=out_features,
-#                         receptive_field=9,
-#                         feats=self.conv_net_feats
-#                     ),
-#                     in_ch=self.internal_channels(),
-#                     codes=self.codes,
-#                     device=self.device
-#                 )
-            
-#             case _: 
-#                 assert False, f"Invalid layer name : {name}"
-
-#     def _flow_forward(self, noisy, clean, kwargs=dict()):
-#         x = noisy
-#         kwargs['clean'] = clean.clone()
-
-#         objectives = 0.
-#         for bijector in self.pre_bijectors:
-#             if isinstance(bijector, get_flow_layer("UniformDequantization")):
-#                 kwargs['clean'], _ = bijector._forward_and_log_det_jacobian(kwargs['clean'])
-
-#             x, ldj = bijector._forward_and_log_det_jacobian(x, **kwargs)
-#             objectives += ldj
-
-#         for bijector in self.bijectors:
-#             x, ldj = bijector._forward_and_log_det_jacobian(x, **kwargs)
-#             objectives += ldj
-#         return x, objectives
-
-#     def _flow_sample(self, kwargs=dict()):
-#         for bijector in self.pre_bijectors:
-#             if isinstance(bijector, get_flow_layer("UniformDequantization")):
-#                 kwargs['clean'], _ = bijector._forward_and_log_det_jacobian(kwargs['clean'], **kwargs)
-
-#         b,_,h,w = kwargs['clean'].shape
-#         x = self.dist.sample((b,self.internal_channels(),h,w)).to(self.device) ### this should be fixed in the StandardNormal class
-#         for bijector in reversed(self.bijectors):
-#             x = bijector._inverse(x, **kwargs)
-
-#         for bijector in reversed(self.pre_bijectors):
-#             if isinstance(bijector, get_flow_layer("UniformDequantization")):
-#                 kwargs['clean'] = bijector._inverse(kwargs['clean'], **kwargs)
-#             x = bijector._inverse(x, **kwargs)
-#         x = torch.clip(x, 0, 2**self.num_bits)
-#         return x 
-
-#     def forward(self, noisy, clean, kwargs=dict()):
-#         z, objectives = self._flow_forward(noisy, clean, kwargs)
-#         kwargs['clean']=clean
-#         with torch.no_grad():
-#             x = self._flow_sample(kwargs) - kwargs['clean'] 
-#         x_scaled = x / (2**self.num_bits) # x_scaled: -1 ~ 1
-#         y = (self.generator(x_scaled) * (2**self.num_bits) + kwargs['clean']).requires_grad_(True)
-#         return z, objectives, y, x
-    
-#     def sample(self, kwargs=dict()):
-#         x = self._flow_sample(kwargs) - kwargs['clean'] # pixelwise noise
-#         x_scaled = x / (2**self.num_bits) # x_scaled: -1 ~ 1
-#         y = self.generator(x_scaled) * (2**self.num_bits) + kwargs['clean']
-#         y = torch.clip(y, 0, 2**self.num_bits)
-#         return y
-
-# %% ../nbs/04_models.ipynb 13
+@regist_model
 class NMFlowGANGenerator(NMFlow):
     def __init__(
         self,

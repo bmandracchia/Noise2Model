@@ -156,15 +156,20 @@ class NMFlow(nn.Module):
                 kwargs['clean'], _ = bijector._forward_and_log_det_jacobian(kwargs['clean'], **kwargs)
 
         b,_,h,w = kwargs['clean'].shape
+        # print('clean:', kwargs['clean'])
+        ############ debug here
         x = self.dist.sample((b,self.internal_channels(),h,w))
-        print(x.device)
+        # print('dist.sample:', x)
+        # print('diff:', kwargs['clean']+x)
         for bijector in reversed(self.bijectors):
             x = bijector._inverse(x, **kwargs)
+            # print(bijector, x)
 
         for bijector in reversed(self.pre_bijectors):
             if isinstance(bijector, get_flow_layer("UniformDequantization")):
                 kwargs['clean'] = bijector._inverse(kwargs['clean'], **kwargs)
             x = bijector._inverse(x, **kwargs)
+        
         x = torch.clip(x, 0, 2**self.num_bits)
         return x 
 
@@ -266,7 +271,7 @@ class NMFlowGANGenerator(NMFlow):
         y = torch.clip(y, 0, 2**self.num_bits)
         return y
 
-# %% ../nbs/04_models.ipynb 17
+# %% ../nbs/04_models.ipynb 18
 @regist_model
 class NMFlowGANCritic(nn.Module):
     def __init__(
@@ -284,7 +289,7 @@ class NMFlowGANCritic(nn.Module):
          return self.critic(x_scaled)
 
 
-# %% ../nbs/04_models.ipynb 18
+# %% ../nbs/04_models.ipynb 19
 class Discriminator_96(nn.Module):
     """Discriminator with 96x96 input, refer to Kai Zhang, https://github.com/cszn/KAIR"""
     def __init__(self, in_nc=3, nc=64):
@@ -325,7 +330,7 @@ class Discriminator_96(nn.Module):
         return x
     
 
-# %% ../nbs/04_models.ipynb 20
+# %% ../nbs/04_models.ipynb 21
 class NMFlowGANDenoiser(nn.Module):
     def __init__(
             self,
@@ -397,7 +402,7 @@ class NMFlowGANDenoiser(nn.Module):
         n_scaled = n_scaled * (2**num_bits) # n_scaled: 0 ~ denoiser's max GL.
         return n_scaled
 
-# %% ../nbs/04_models.ipynb 21
+# %% ../nbs/04_models.ipynb 22
 @regist_model
 class DnCNNFlowGAN(NMFlowGANDenoiser):
     def __init__(

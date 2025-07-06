@@ -245,7 +245,7 @@ class UniformDequantization(nn.Module):
             torch.Tensor: Dequantized tensor.
         """
         # Apply the inverse sigmoid transformation to z
-        z = self._sigmoid_inverse(z)
+        # z = self._sigmoid_inverse(z)
         # Quantize the values to integer bins
         z = (self.quantization_bins * z).floor().clamp(min=0, max=self.quantization_bins - 1)
         return z
@@ -277,7 +277,13 @@ class UniformDequantization(nn.Module):
             tuple: Transformed tensor and updated log-determinant of the Jacobian.
         """
         # Update ldj with the sigmoid transformation's contribution
-        ldj += (-z - 2 * F.softplus(-z)).sum(dim=[1, 2, 3])
+        # Support both 2D (batch, features) and 4D (batch, channels, height, width) tensors
+        if z.dim() == 4:
+            ldj += (-z - 2 * F.softplus(-z)).sum(dim=[1, 2, 3])
+        elif z.dim() == 2:
+            ldj += (-z - 2 * F.softplus(-z)).sum(dim=1)
+        else:
+            raise ValueError(f"Unsupported tensor shape for z: {z.shape}")
         z = torch.sigmoid(z)
         # Adjust the log-determinant for the alpha scaling
         ldj -= torch.log(torch.tensor(1.0 - self.alpha, device=z.device, dtype=z.dtype)) * z.flatten(1).shape[1]
@@ -321,7 +327,7 @@ class UniformDequantization(nn.Module):
 
 
 
-# %% ../nbs/02_layers.ipynb 20
+# %% ../nbs/02_layers.ipynb 21
 # class VariationalDequantization(UniformDequantization):
 
 #     def __init__(self, var_flows, alpha=1e-5, num_bits=8, device='cpu', name='variational_dequantization'):
@@ -370,7 +376,7 @@ class UniformDequantization(nn.Module):
 #     #     return z, ldj
 
 
-# %% ../nbs/02_layers.ipynb 22
+# %% ../nbs/02_layers.ipynb 23
 @regist_layer
 class ConditionalLinear(nn.Module):
     """
@@ -469,7 +475,7 @@ class ConditionalLinear(nn.Module):
 
 
 
-# %% ../nbs/02_layers.ipynb 25
+# %% ../nbs/02_layers.ipynb 26
 @regist_layer
 class ConditionalLinearExp2(nn.Module):
     """
@@ -572,7 +578,7 @@ class ConditionalLinearExp2(nn.Module):
         return z, log_abs_det_J_inv
 
 
-# %% ../nbs/02_layers.ipynb 28
+# %% ../nbs/02_layers.ipynb 29
 @regist_layer
 class SignalDependentConditionalLinear(nn.Module):
     """
@@ -697,7 +703,7 @@ class SignalDependentConditionalLinear(nn.Module):
         return z, log_abs_det_J_inv
 
 
-# %% ../nbs/02_layers.ipynb 31
+# %% ../nbs/02_layers.ipynb 32
 @regist_layer
 class StructureAwareConditionalLinearLayer(nn.Module):
     """
@@ -814,7 +820,7 @@ class StructureAwareConditionalLinearLayer(nn.Module):
 
 
 
-# %% ../nbs/02_layers.ipynb 34
+# %% ../nbs/02_layers.ipynb 35
 @regist_layer
 class NoiseExtraction(nn.Module):
     """
@@ -876,7 +882,7 @@ class NoiseExtraction(nn.Module):
         return z, ldj
 
 
-# %% ../nbs/02_layers.ipynb 37
+# %% ../nbs/02_layers.ipynb 38
 # class Gain(Flow):
 #     """
 #     Gain & Offset flow layer

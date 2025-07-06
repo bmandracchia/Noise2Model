@@ -78,6 +78,7 @@ class StandardNormal(nn.Module):
 
     def sample(self, shape):
         return torch.randn(*shape, device=self.buffer.device, dtype=self.buffer.dtype)
+        # return torch.rand(*shape, device=self.buffer.device, dtype=self.buffer.dtype)
 
 def sum_except_batch(x, num_dims=1):
     '''
@@ -430,7 +431,7 @@ class FileManager:
             
         if not os.path.isdir(self.output_folder):
             os.makedirs(self.output_folder)
-            print("[WARNING] output folder is not exist, create new one")
+            print("[WARNING] output folder does not exist, creating a new one")
 
         # init session
         self.session_name = session_name

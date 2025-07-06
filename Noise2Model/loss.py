@@ -214,5 +214,5 @@ class real_sub_fake(nn.Module):
         super().__init__()
 
     def forward(self, input_data, model_output, data, module):
-        print(model_output['fake']) # to be removed
+        # print(model_output['fake']) # to be removed
         return model_output['critic_real'].mean() - model_output['critic_fake'].mean()

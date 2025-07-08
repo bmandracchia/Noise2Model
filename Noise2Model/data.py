@@ -38,13 +38,15 @@ def get_dataset_class(dataset_name):
 # %% ../nbs/01_data.ipynb 7
 def get_FMD_img_paths(base_path):
     file_paths = list()
-    for full_path, _, file_names in os.walk(os.path.join(base_path, 'raw')):
-        for file_name in file_names:
-            if 'png' in file_name:
-                raw_path = os.path.join(full_path, file_name)
-                gt_path = os.path.join(full_path.replace('raw','gt'), 'avg50.png')
-                if os.path.exists(gt_path):
-                    file_paths.append({'GT':gt_path,'NOISY': raw_path})
+    for _ , dirs, _ in os.walk(base_path):
+        for dir in dirs:
+            for full_path, _, file_names in os.walk(os.path.join(base_path,dir, 'raw')):
+                for file_name in file_names:
+                    if 'png' in file_name:
+                        raw_path = os.path.join(full_path, file_name)
+                        gt_path = os.path.join(full_path.replace('raw','gt'), 'avg50.png')
+                        if os.path.exists(gt_path):
+                            file_paths.append({'GT':gt_path,'NOISY': raw_path})
     return file_paths
 
 

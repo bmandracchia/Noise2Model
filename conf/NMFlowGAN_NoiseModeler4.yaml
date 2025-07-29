@@ -1,5 +1,5 @@
 LOG:
-  session_name: 'nmflowgan_test3'
+  session_name: 'nmflowgan_test2'
 
 BASE:
   trainer: 'NoiseFlowGANTrainer'
@@ -13,11 +13,11 @@ DATA:
   validation_dataset_path: '../_data/HDF5_confocal_s96_o08/noise_gen/test'
   test_dataset: 'SIDD_HDF'
   test_dataset_path: '../_data/HDF5_confocal_s64_o08/noise_gen/test'
-  batch_size: 32
+  batch_size: 128
   TRAIN_DATALOADER:
     n_repeat: 1
   VALIDATION_DATALOADER:
-    step: 10
+    step: 100
   TEST_DATALOADER:
     step: 1
 
@@ -33,7 +33,7 @@ MODEL:
   UNET:
       in_channels: 1
       n_classes: 1
-      depth: 3
+      depth: 5
       wf: 6
       padding: True
       batch_norm: False

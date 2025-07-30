@@ -14,7 +14,7 @@ from torch import nn
 import torch.nn.functional as F
 import numpy as np
 
-from .utils import store_attr, compute_index, compute_one_hot
+from .utils import store_attr, ComputeIndex, ComputeOneHot
 
 # %% ../nbs/02_layers.ipynb 5
 flow_layer_class_dict = {}
@@ -420,7 +420,7 @@ class ConditionalLinear(nn.Module):
         self.bias = nn.Parameter(torch.zeros(self.par_num, device=device), requires_grad=True)
         
     def _computeIndex(self, b, **kwargs):
-        return compute_index(self.codes, device=self.device)(b, **kwargs)
+        return ComputeIndex(self.codes, device=self.device)(b, **kwargs)
         
     def _inverse(self, z, **kwargs):
         """
@@ -522,7 +522,7 @@ class ConditionalLinearExp2(nn.Module):
         self.bias = nn.Parameter(torch.zeros(self.par_num, in_ch, device=device), requires_grad=True)
         
     def _computeIndex(self, b, **kwargs):
-        return compute_index(self.codes, device=self.device)(b, **kwargs)
+        return ComputeIndex(self.codes, device=self.device)(b, **kwargs)
 
     def _inverse(self, z, **kwargs):
         """
@@ -633,8 +633,13 @@ class SignalDependentConditionalLinear(nn.Module):
         self.meta_encoder = meta_encoder(n, self.encode_ch).to(device)
         self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2).to(device) # scale, bias per channels
         
-    def _computeOneHot(self, b, **kwargs):
-        return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
+    # def _computeOneHot(self, b, **kwargs):
+    #     return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
+    
+    def _computeOneHot(self, batch_size, **kwargs):
+        current_device = next(iter(kwargs.values())).device
+        return ComputeOneHot(self.codes, device=current_device)(batch_size, **kwargs)
+
 
     def _get_embeddings(self, x, **kwargs):
         """
@@ -754,8 +759,12 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         self.meta_encoder = meta_encoder(n, in_ch * 2).to(device)
         self.structure_encoder = structure_encoder(in_ch, in_ch * 2).to(device)
         
-    def _computeOneHot(self, b, **kwargs):
-        return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
+    # def _computeOneHot(self, b, **kwargs):
+    #     return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
+    
+    def _computeOneHot(self, batch_size, **kwargs):
+        current_device = next(iter(kwargs.values())).device
+        return ComputeOneHot(self.codes, device=current_device)(batch_size, **kwargs)
 
     def _get_embeddings(self, x, **kwargs):
         """

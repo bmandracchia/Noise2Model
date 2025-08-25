@@ -419,8 +419,7 @@ class ConditionalLinear(nn.Module):
         self.log_scale = nn.Parameter(torch.zeros(self.par_num, device=device), requires_grad=True)
         self.bias = nn.Parameter(torch.zeros(self.par_num, device=device), requires_grad=True)
         
-    def _computeIndex(self, b, **kwargs):
-        return ComputeIndex(self.codes, device=self.device)(b, **kwargs)
+        self._computeIndex = ComputeIndex(codes)
         
     def _inverse(self, z, **kwargs):
         """
@@ -521,9 +520,8 @@ class ConditionalLinearExp2(nn.Module):
         self.log_scale = nn.Parameter(torch.zeros(self.par_num, in_ch, device=device), requires_grad=True)
         self.bias = nn.Parameter(torch.zeros(self.par_num, in_ch, device=device), requires_grad=True)
         
-    def _computeIndex(self, b, **kwargs):
-        return ComputeIndex(self.codes, device=self.device)(b, **kwargs)
-
+        self._computeIndex = ComputeIndex(codes)
+        
     def _inverse(self, z, **kwargs):
         """
         Applies the inverse transformation to the input tensor z.
@@ -626,21 +624,14 @@ class SignalDependentConditionalLinear(nn.Module):
         self.codes = codes
         self.in_ch = in_ch
         self.encode_ch = encode_ch
+        self._computeOneHot = ComputeOneHot(codes)
         
         n = 0
         for k,v in codes.items():
             n += len(v)
-        self.meta_encoder = meta_encoder(n, self.encode_ch).to(device)
-        self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2).to(device) # scale, bias per channels
+        self.meta_encoder = meta_encoder(n, self.encode_ch)
+        self.scale_and_bias = scale_and_bias(self.encode_ch+in_ch, in_ch*2) # scale, bias per channels
         
-    # def _computeOneHot(self, b, **kwargs):
-    #     return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
-    
-    def _computeOneHot(self, batch_size, **kwargs):
-        current_device = next(iter(kwargs.values())).device
-        return ComputeOneHot(self.codes, device=current_device)(batch_size, **kwargs)
-
-
     def _get_embeddings(self, x, **kwargs):
         """
         Generates embeddings from ISO-level and smartphone-code inputs and concatenates them with additional features.
@@ -655,7 +646,8 @@ class SignalDependentConditionalLinear(nn.Module):
         batch_size = x.shape[0]
 
         # Generate embeddings using the meta encoder
-        embedding = self.meta_encoder(self._computeOneHot(batch_size,**kwargs))
+        oneh = self._computeOneHot(batch_size, **kwargs)
+        embedding = self.meta_encoder(oneh)
         embedding = embedding.reshape((-1, self.encode_ch, 1, 1))
         embedding = torch.repeat_interleave(embedding, x.shape[-2], dim=-2)
         embedding = torch.repeat_interleave(embedding, x.shape[-1], dim=-1)
@@ -752,19 +744,13 @@ class StructureAwareConditionalLinearLayer(nn.Module):
         self.device = device 
         self.in_ch = in_ch
         self.codes = codes
+        self._computeOneHot = ComputeOneHot(codes)
 
         n = 0
         for k,v in codes.items():
             n += len(v)
-        self.meta_encoder = meta_encoder(n, in_ch * 2).to(device)
-        self.structure_encoder = structure_encoder(in_ch, in_ch * 2).to(device)
-        
-    # def _computeOneHot(self, b, **kwargs):
-    #     return compute_one_hot(self.codes, device=self.device)(b, **kwargs)
-    
-    def _computeOneHot(self, batch_size, **kwargs):
-        current_device = next(iter(kwargs.values())).device
-        return ComputeOneHot(self.codes, device=current_device)(batch_size, **kwargs)
+        self.meta_encoder = meta_encoder(n, in_ch * 2)
+        self.structure_encoder = structure_encoder(in_ch, in_ch * 2)
 
     def _get_embeddings(self, x, **kwargs):
         """

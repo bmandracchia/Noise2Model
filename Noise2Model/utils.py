@@ -40,6 +40,9 @@ class ComputeIndex:
         for key, value in self.codes.items():
             idx = idx * len(value)
             for i, v in enumerate(value):
+                # Ensure v is a tensor and move it to the same device as kwargs[key]
+                if isinstance(v, torch.Tensor):
+                    v = v.to(kwargs[key].device)
                 idx += torch.where(kwargs[key] == v, i, 0.0)
         return idx
 
@@ -58,10 +61,10 @@ class ComputeOneHot:
 
         embedding = torch.tensor([], device=device)
         for key, value in self.codes.items():
-            idx = torch.zeros([b], device=device, dtype=torch.float32)
+            idx = torch.zeros([b], device=kwargs[key].device, dtype=torch.float32)
             for i, v in enumerate(value):
-                idx += torch.where(kwargs[key] == v, i, 0.0)
-            idx_one_hot = F.one_hot(idx.to(torch.int64), num_classes=len(value)).to(torch.float32)
+                idx += torch.where(kwargs[key] == v.to(kwargs[key].device), i, 0.0)
+            idx_one_hot = F.one_hot(idx.to(torch.int64), num_classes=value.shape[0]).to(torch.float32)
             embedding = torch.cat((embedding, idx_one_hot), dim=1)
         return embedding
 

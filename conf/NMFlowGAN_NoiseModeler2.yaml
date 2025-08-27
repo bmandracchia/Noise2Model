@@ -1,5 +1,5 @@
 LOG:
-  session_name: 'nmflowgan_test3'
+  session_name: 'nmflowgan_test_fast'
 
 BASE:
   trainer: 'NoiseFlowGANTrainer'

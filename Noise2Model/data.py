@@ -118,7 +118,7 @@ def preprocessing(data_path,
                     mode = 'NOISE_GEN', # ['NOISE_GEN', 'DENOISER', 'ALL']
                     output_base_path = '../_data/HDF5_confocal_s96_o08',
                     train_noisegen_idx = [1], #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-                    train_denoiser_idx = [1],
+                    train_denoiser_idx = [2],
                     train_all_idx = [1],
                     test_idx = [19],
                     ):

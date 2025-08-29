@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import random, os
 
 import numpy as np
+import scipy
+import scipy.io
 from scipy.io import savemat
 import torch
 from torch.utils.data import Dataset
@@ -121,6 +123,7 @@ def preprocessing(data_path,
                     train_denoiser_idx = [2],
                     train_all_idx = [1],
                     test_idx = [19],
+                    overwrite=False
                     ):
     
     img_paths = get_FMD_img_paths(data_path) #load paths
@@ -153,6 +156,11 @@ def preprocessing(data_path,
             else:
                 continue
             
+        # Check for overwrite
+        if os.path.exists(output_dir_path) and len(os.listdir(output_dir_path)) > 0 and not overwrite:
+            print(f"Skipping {output_dir_path} (not empty and overwrite=False)")
+            break
+
         os.makedirs(output_dir_path, exist_ok=True)
         output_file_name = '%04d_%s.hdf5'%(img_idx, img_path['GT'].split('/')[-2])
         hdf_file_path = os.path.join(output_dir_path, output_file_name)
@@ -653,39 +661,52 @@ class SIDD_HDF(BaseDataset):
     
 
 @regist_dataset
-class SIDD_val(BaseDataset):
+class SIDD_val(SIDD_HDF):
     '''
     SIDD validation dataset class 
     '''
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _scan(self):
-        dataset_path = self.dataset_dir
-        assert os.path.exists(dataset_path), 'There is no dataset %s'%dataset_path
+    # def _scan(self):
+    #     dataset_path = self.dataset_dir
+    #     assert os.path.exists(dataset_path), 'There is no dataset %s'%dataset_path
 
-        clean_mat_file_path = os.path.join(dataset_path, 'ValidationGtBlocksSrgb.mat')
-        noisy_mat_file_path = os.path.join(dataset_path, 'ValidationNoisyBlocksSrgb.mat')
+    #     clean_mat_file_path = os.path.join(dataset_path, 'ValidationGtBlocksSrgb.mat')
+    #     noisy_mat_file_path = os.path.join(dataset_path, 'ValidationNoisyBlocksSrgb.mat')
 
-        self.clean_patches = np.array(scipy.io.loadmat(clean_mat_file_path, appendmat=False)['ValidationGtBlocksSrgb'])
-        self.noisy_patches = np.array(scipy.io.loadmat(noisy_mat_file_path, appendmat=False)['ValidationNoisyBlocksSrgb'])
+    #     self.clean_patches = np.array(scipy.io.loadmat(clean_mat_file_path, appendmat=False)['ValidationGtBlocksSrgb'])
+    #     self.noisy_patches = np.array(scipy.io.loadmat(noisy_mat_file_path, appendmat=False)['ValidationNoisyBlocksSrgb'])
 
-        # for __len__(), make img_paths have same length
-        # number of all possible patch is 1280
-        for _ in range(1280):
-            self.img_paths.append(None)
+    #     # for __len__(), make img_paths have same length
+    #     # number of all possible patch is 1280
+    #     for _ in range(1280):
+    #         self.img_paths.append(None)
 
     def _load_data(self, data_idx):
-        img_id   = data_idx // 32
-        patch_id = data_idx  % 32
+        with h5py.File(self.img_paths[data_idx]['file_path'], 'r') as hf:
+            clean_img = hf[self.img_paths[data_idx]['clean']][...].astype(np.float32)
+            noisy_img = hf[self.img_paths[data_idx]['noisy']][...].astype(np.float32)
+        
+            if len(clean_img.shape) == 2: clean_img = np.expand_dims(clean_img, axis=0)
+            if len(noisy_img.shape) == 2: noisy_img = np.expand_dims(noisy_img, axis=0)
+            # kwargs = dict()
+            # for key in hf['config'].attrs.keys():
+            #     kwargs[key] = hf['config'].attrs[key]
+        
+        return {'clean': clean_img, 'real_noisy': noisy_img}
+    
+    # def _load_data(self, data_idx):
+    #     img_id   = data_idx // 32
+    #     patch_id = data_idx  % 32
 
-        clean_img = self.clean_patches[img_id, patch_id, :].astype(float)
-        noisy_img = self.noisy_patches[img_id, patch_id, :].astype(float)
+    #     clean_img = self.clean_patches[img_id, patch_id, :].astype(float)
+    #     noisy_img = self.noisy_patches[img_id, patch_id, :].astype(float)
 
-        clean_img = self._load_img_from_np(clean_img)
-        noisy_img = self._load_img_from_np(noisy_img)
+    #     clean_img = self._load_img_from_np(clean_img)
+    #     noisy_img = self._load_img_from_np(noisy_img)
 
-        return {'clean': clean_img, 'real_noisy': noisy_img }
+    #     return {'clean': clean_img, 'real_noisy': noisy_img }
 
 @regist_dataset
 class SIDD_benchmark(BaseDataset):

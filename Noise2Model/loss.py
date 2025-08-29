@@ -119,7 +119,7 @@ class L1Loss(nn.Module):
 @regist_loss
 class L2Loss(nn.Module):
     def forward(self, input_data, model_output, data, module):
-        fx = model_output['z']
+        fx = model_output['recon']
         y = data['clean']
         return _mse(fx, y, level=2)
 

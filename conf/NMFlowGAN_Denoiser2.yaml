@@ -61,6 +61,7 @@ SCHEDULER:
     gamma: 0.5
 
 DATA:
+  output_path: '../_saved_models'
   train_dataset: 'SIDD_HDF'
   train_dataset_path: '../_data/HDF5_confocal_s96_o08/denoiser'
   validation_dataset: 'SIDD_val'

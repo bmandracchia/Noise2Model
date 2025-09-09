@@ -216,10 +216,10 @@ def ssim(img1: Tensor, img2: Tensor, data_range):
     image value range : [0 - data_range]
     clipping for model output
     '''
-    if len(img1.shape) == 4:
-        img1 = img1[0]
-    if len(img2.shape) == 4:
-        img2 = img2[0]
+    if img1.ndim == 3:
+        img1 = img1.unsqueeze(1)  # [B, 1, H, W]
+    if img2.ndim == 3:
+        img2 = img2.unsqueeze(1)
 
     # tensor value clipping
     img2 = img2.clamp(0, data_range)

@@ -19,6 +19,7 @@ import numpy as np
 import torch 
 from torch import nn
 import torch.nn.functional as F
+from torch import Tensor
 
 from torchmetrics.functional.image import structural_similarity_index_measure as structural_similarity
 from torchmetrics.functional.image import peak_signal_noise_ratio
@@ -210,7 +211,7 @@ def psnr(x, y, mask=None, max_val=1.):
 
 
 # %% ../nbs/09_utils.ipynb 21
-def ssim(img1, img2, data_range):
+def ssim(img1: Tensor, img2: Tensor, data_range):
     '''
     image value range : [0 - data_range]
     clipping for model output
@@ -220,18 +221,11 @@ def ssim(img1, img2, data_range):
     if len(img2.shape) == 4:
         img2 = img2[0]
 
-    # tensor to numpy
-    if isinstance(img1, torch.Tensor):
-        img1 = tensor2np(img1)
-    if isinstance(img2, torch.Tensor):
-        img2 = tensor2np(img2)
+    # tensor value clipping
+    img2 = img2.clamp(0, data_range)
+    img1 = img1.clamp(0, data_range)
 
-    # numpy value cliping
-    img2 = np.clip(img2, 0, data_range)
-    img1 = np.clip(img1, 0, data_range)
-
-    # https://forum.image.sc/t/how-to-calculate-ssim-of-muti-channel-images-since-the-function-structural-similarity-deprecate-the-parameter-multichannel/79693
-    return structural_similarity(img1, img2, channel_axis=-1, data_range=data_range)
+    return structural_similarity(img1, img2, data_range=data_range)
 
 
 # %% ../nbs/09_utils.ipynb 22

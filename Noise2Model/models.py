@@ -98,11 +98,12 @@ class NMFlow(nn.Module):
                         num_blocks=3,
                         use_batch_norm=True,
                         dropout_probability=0.0
-                    ),
+                    ).to(self.device),
                     scale_and_bias=lambda in_features, out_features: get_flow_layer("PointwiseConvs")(
                         in_features=in_features,
                         out_features=out_features,
-                        feats=self.conv_net_feats
+                        feats=self.conv_net_feats,
+                        device=self.device
                     ),
                     in_ch=self.internal_channels(),
                     device=self.device,
@@ -118,12 +119,13 @@ class NMFlow(nn.Module):
                         num_blocks=3,
                         use_batch_norm=True,
                         dropout_probability=0.0
-                    ),
+                    ).to(self.device),
                     structure_encoder=lambda in_features, out_features: get_flow_layer("SpatialConvs")(
                         in_features=in_features,
                         out_features=out_features,
                         receptive_field=9,
-                        feats=self.conv_net_feats
+                        feats=self.conv_net_feats,
+                        device=self.device
                     ),
                     in_ch=self.internal_channels(),
                     codes=self.codes,

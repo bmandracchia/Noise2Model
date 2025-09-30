@@ -2,7 +2,7 @@
 
 # %% auto 0
 __all__ = ['model_class_dict', 'regist_model', 'get_model_class', 'NMFlow', 'NMFlowDenoiser', 'NMFlowGANGenerator',
-           'NMFlowGANCritic', 'Discriminator_96', 'NMFlowGANDenoiser', 'DnCNNFlowGAN']
+           'NMFlowGANCritic', 'Discriminator_96', 'NMFlowGANDenoiser', 'DnCNNFlowGAN', 'UNetFlowGAN']
 
 # %% ../nbs/04_models.ipynb 3
 import os
@@ -404,7 +404,7 @@ class NMFlowGANDenoiser(nn.Module):
         n_scaled = n_scaled * (2**num_bits) # n_scaled: 0 ~ denoiser's max GL.
         return n_scaled
 
-# %% ../nbs/04_models.ipynb 22
+# %% ../nbs/04_models.ipynb 23
 @regist_model
 class DnCNNFlowGAN(NMFlowGANDenoiser):
     def __init__(
@@ -417,6 +417,24 @@ class DnCNNFlowGAN(NMFlowGANDenoiser):
         ):
         super().__init__(
             DnCNN(**kwargs_dncnn),
+            kwargs_flow,
+            kwargs_unet,
+            pretrained_path,
+            num_bits,
+        )
+
+# %% ../nbs/04_models.ipynb 25
+@regist_model
+class UNetFlowGAN(NMFlowGANDenoiser):
+    def __init__(
+        self,
+        kwargs_unet,
+        kwargs_flow,
+        pretrained_path,
+        num_bits=8
+        ):
+        super().__init__(
+            UNet(**kwargs_unet),
             kwargs_flow,
             kwargs_unet,
             pretrained_path,

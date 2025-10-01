@@ -1129,9 +1129,13 @@ class SLDenoisingTrainer(BaseTrainer):
             kwargs['kwargs_unet'] = self.config.MODEL.UNET
         elif self.config.BASE.model.lower() == 'unetflowgan':
             kwargs = self.config.MODEL.DNCNNFLOWGAN
-            # kwargs['kwargs_dncnn'] = self.config.MODEL.DNCNN
             kwargs['kwargs_flow'] = self.config.MODEL.NMFLOW
             kwargs['kwargs_unet'] = self.config.MODEL.UNET
+        elif self.config.BASE.model.lower() == 'myunetflowgan':
+            kwargs = self.config.MODEL.DNCNNFLOWGAN
+            kwargs['kwargs_flow'] = self.config.MODEL.NMFLOW
+            kwargs['kwargs_unet'] = self.config.MODEL.UNET
+            kwargs['kwargs_myunet'] = self.config.MODEL.MYUNET
         else:
             assert False, f"Invalid model: {self.config.BASE.model}"
         module = {}

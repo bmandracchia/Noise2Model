@@ -33,7 +33,7 @@ MODEL:
     features: 64
     
 TRAIN:
-  max_epochs: 30
+  max_epochs: 6
   init_lr: 1e-4
   loss: "1.0*L2Loss"
 

@@ -3,10 +3,17 @@ website:
     contents:
       - index.ipynb
       - 00_core.ipynb
-      - 01_models.ipynb
-      - 02_noiseflow.ipynb
-      - 03_noise2noiseflow.ipynb
+      - 01_data.ipynb
+      - 02_layers.ipynb
+      - 03_nets.ipynb
+      - 04_models.ipynb
+      - 05_loss.ipynb
+      - 06_trainer.ipynb
       - 09_utils.ipynb
-      - 91_demo_demo1.ipynb
-      - 92_demo_demo2.ipynb
-      - 93_demo_demo3.ipynb
+      - 99_demo.ipynb
+      - 99_demo2.ipynb
+      - 99_demo2_den.ipynb
+      - 99_demo2_den2.ipynb
+      - 99_noise2noiseflow.ipynb
+      - 99_noiseflow.ipynb
+      - XX_demo_GAN.ipynb

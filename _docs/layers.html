@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.30">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="normalizing flow layers">
+
+<title>Layers – Noise2Model</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-2b3e328b71be8d25427581baeb23079b.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-de070a7b0ab54f8780927367ac907214.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-6e8646b73407597d9b4b824cbb62deb2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-ced21c9c1796cae617c358fa4e5369dd.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-6e8646b73407597d9b4b824cbb62deb2.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<meta property="og:title" content="Layers – Noise2Model">
+<meta property="og:description" content="normalizing flow layers">
+<meta property="og:site_name" content="Noise2Model">
+<meta name="twitter:title" content="Layers – Noise2Model">
+<meta name="twitter:description" content="normalizing flow layers">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Noise2Model</span>
+    </a>
+  </div>
+        <div class="quarto-navbar-tools tools-end">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+          <div id="quarto-search" class="" title="Search"></div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./layers.html">Layers</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+        <div class="sidebar-tools-main">
+    <a href="https://github.com/bmandracchia/Noise2Model" title="GitHub organization" class="quarto-navigation-tool px-1" aria-label="GitHub organization"><i class="bi bi-github"></i></a>
+    <div class="dropdown">
+      <a href="" title="Collaborators" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Collaborators"><i class="bi bi-person-fill"></i></a>
+      <ul class="dropdown-menu" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item sidebar-tools-main-item" href="https://bmandracchia.github.io">
+            B. Mandracchia
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item sidebar-tools-main-item" href="https://deepclem.github.io">
+            deepCLEM
+            </a>
+          </li>
+      </ul>
+    </div>
+</div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Noise2Model</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./core.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Core</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./layers.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Layers</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./nets.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Networks</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./models.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Models</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./loss.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Loss</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./trainer.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Trainer</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./utils.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Utils</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">demos</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demos/99_demo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">99_demo.html</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demos/99_demo2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">99_demo2.html</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demos/99_demo2_den.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">99_demo2_den.html</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demos/99_demo2_den2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">99_demo2_den2.html</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demos/XX_demo_GAN.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">XX_demo_GAN.html</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#regist_layer" id="toc-regist_layer" class="nav-link active" data-scroll-target="#regist_layer">regist_layer</a></li>
+  <li><a href="#get_flow_layer" id="toc-get_flow_layer" class="nav-link" data-scroll-target="#get_flow_layer">get_flow_layer</a></li>
+  <li><a href="#convolutions" id="toc-convolutions" class="nav-link" data-scroll-target="#convolutions">Convolutions</a>
+  <ul class="collapse">
+  <li><a href="#pointwise-convs" id="toc-pointwise-convs" class="nav-link" data-scroll-target="#pointwise-convs">Pointwise Convs</a></li>
+  <li><a href="#pointwiseconvs" id="toc-pointwiseconvs" class="nav-link" data-scroll-target="#pointwiseconvs">PointwiseConvs</a></li>
+  <li><a href="#spatial-convs" id="toc-spatial-convs" class="nav-link" data-scroll-target="#spatial-convs">Spatial Convs</a></li>
+  <li><a href="#spatialconvs" id="toc-spatialconvs" class="nav-link" data-scroll-target="#spatialconvs">SpatialConvs</a></li>
+  </ul></li>
+  <li><a href="#normalizing-flows" id="toc-normalizing-flows" class="nav-link" data-scroll-target="#normalizing-flows">Normalizing Flows</a>
+  <ul class="collapse">
+  <li><a href="#dequantization" id="toc-dequantization" class="nav-link" data-scroll-target="#dequantization">Dequantization</a></li>
+  <li><a href="#uniformdequantization" id="toc-uniformdequantization" class="nav-link" data-scroll-target="#uniformdequantization">UniformDequantization</a></li>
+  <li><a href="#conditional-linear" id="toc-conditional-linear" class="nav-link" data-scroll-target="#conditional-linear">Conditional Linear</a></li>
+  <li><a href="#conditionallinear" id="toc-conditionallinear" class="nav-link" data-scroll-target="#conditionallinear">ConditionalLinear</a></li>
+  <li><a href="#conditional-linear-e2" id="toc-conditional-linear-e2" class="nav-link" data-scroll-target="#conditional-linear-e2">Conditional Linear <span class="math inline">\(e^2\)</span></a></li>
+  <li><a href="#conditionallinearexp2" id="toc-conditionallinearexp2" class="nav-link" data-scroll-target="#conditionallinearexp2">ConditionalLinearExp2</a></li>
+  <li><a href="#signal-dependent-conditional-linear" id="toc-signal-dependent-conditional-linear" class="nav-link" data-scroll-target="#signal-dependent-conditional-linear">Signal Dependent Conditional Linear</a></li>
+  <li><a href="#signaldependentconditionallinear" id="toc-signaldependentconditionallinear" class="nav-link" data-scroll-target="#signaldependentconditionallinear">SignalDependentConditionalLinear</a></li>
+  <li><a href="#structure-aware-conditional-linear-layer" id="toc-structure-aware-conditional-linear-layer" class="nav-link" data-scroll-target="#structure-aware-conditional-linear-layer">Structure-Aware Conditional Linear Layer</a></li>
+  <li><a href="#structureawareconditionallinearlayer" id="toc-structureawareconditionallinearlayer" class="nav-link" data-scroll-target="#structureawareconditionallinearlayer">StructureAwareConditionalLinearLayer</a></li>
+  </ul></li>
+  <li><a href="#noise-extraction" id="toc-noise-extraction" class="nav-link" data-scroll-target="#noise-extraction">Noise Extraction</a>
+  <ul class="collapse">
+  <li><a href="#noiseextraction" id="toc-noiseextraction" class="nav-link" data-scroll-target="#noiseextraction">NoiseExtraction</a></li>
+  </ul></li>
+  <li><a href="#noise-flow-layers" id="toc-noise-flow-layers" class="nav-link" data-scroll-target="#noise-flow-layers">Noise Flow Layers</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/bmandracchia/Noise2Model/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Layers</h1>
+</div>
+
+<div>
+  <div class="description">
+    normalizing flow layers
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<div id="cell-2" class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fastai.imports <span class="im">import</span> <span class="op">*</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L22" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="regist_layer" class="level3">
+<h3 class="anchored" data-anchor-id="regist_layer">regist_layer</h3>
+<blockquote class="blockquote">
+<pre><code> regist_layer (layer_class)</code></pre>
+</blockquote>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L31" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="get_flow_layer" class="level3">
+<h3 class="anchored" data-anchor-id="get_flow_layer">get_flow_layer</h3>
+<blockquote class="blockquote">
+<pre><code> get_flow_layer (layer_name:str)</code></pre>
+</blockquote>
+</section>
+<section id="convolutions" class="level2">
+<h2 class="anchored" data-anchor-id="convolutions">Convolutions</h2>
+<section id="pointwise-convs" class="level3">
+<h3 class="anchored" data-anchor-id="pointwise-convs">Pointwise Convs</h3>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L38" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="pointwiseconvs" class="level3">
+<h3 class="anchored" data-anchor-id="pointwiseconvs">PointwiseConvs</h3>
+<blockquote class="blockquote">
+<pre><code> PointwiseConvs (in_features=1, out_features=1, feats=32, device='cpu',
+                 name='pointwise_convs')</code></pre>
+</blockquote>
+<p>Pointwise convolutional module for neural networks.</p>
+<p>This module consists of a series of pointwise convolutions with instance normalization and LeakyReLU activation functions.</p>
+<p>Attributes: name (str): Name of the module. device (str): Device to run computations on. body (nn.Sequential): Sequential module containing the layers.</p>
+<p>Methods: _get_basic_module(in_ch, out_ch, k_size=1, stride=1, padding=1, negative_slope=0.2): Returns a basic convolutional module with instance normalization and LeakyReLU activation.</p>
+<pre><code>forward(x):
+    Performs forward pass through the module.</code></pre>
+<div id="cell-8" class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.randn(batch_size, channels, height, width).to(device)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> PointwiseConvs(in_features<span class="op">=</span>channels, out_features<span class="op">=</span>channels, feats<span class="op">=</span><span class="dv">32</span>, device<span class="op">=</span>device)(x)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> y.size() <span class="op">==</span> x.size()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="spatial-convs" class="level3">
+<h3 class="anchored" data-anchor-id="spatial-convs">Spatial Convs</h3>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L116" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="spatialconvs" class="level3">
+<h3 class="anchored" data-anchor-id="spatialconvs">SpatialConvs</h3>
+<blockquote class="blockquote">
+<pre><code> SpatialConvs (in_features=1, out_features=1, feats=32, receptive_field=9,
+               device='cpu', name='spatial_convs')</code></pre>
+</blockquote>
+<p>Spatial convolutional module for neural networks.</p>
+<p>This module consists of a series of spatial convolutions with ReLU activation functions.</p>
+<p>Attributes: name (str): Name of the module. device (str): Device to run computations on. receptive_field (int): Size of the receptive field for spatial convolutions. body (nn.Sequential): Sequential module containing the layers.</p>
+<p>Methods: _get_basic_module(in_ch, out_ch, k_size=1, stride=1, padding=1, negative_slope=0.2): Returns a basic convolutional module with instance normalization and LeakyReLU activation.</p>
+<pre><code>forward(x):
+    Performs forward pass through the module.</code></pre>
+<div id="cell-11" class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.randn(batch_size, channels, height, width).to(device)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> SpatialConvs(in_features<span class="op">=</span>channels, out_features<span class="op">=</span>channels, feats<span class="op">=</span><span class="dv">32</span>, device<span class="op">=</span>device)(x)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> y.size() <span class="op">==</span> x.size()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="normalizing-flows" class="level2">
+<h2 class="anchored" data-anchor-id="normalizing-flows">Normalizing Flows</h2>
+<section id="dequantization" class="level3">
+<h3 class="anchored" data-anchor-id="dequantization">Dequantization</h3>
+<section id="uniform-dequantization" class="level4">
+<h4 class="anchored" data-anchor-id="uniform-dequantization">Uniform Dequantization</h4>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L201" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+</section>
+<section id="uniformdequantization" class="level3">
+<h3 class="anchored" data-anchor-id="uniformdequantization">UniformDequantization</h3>
+<blockquote class="blockquote">
+<pre><code> UniformDequantization (alpha=1e-05, num_bits=8, device='cpu',
+                        name='uniform_dequantization')</code></pre>
+</blockquote>
+<p>Base class for all neural network modules.</p>
+<p>Your models should also subclass this class.</p>
+<p>Modules can also contain other Modules, allowing to nest them in a tree structure. You can assign the submodules as regular attributes::</p>
+<pre><code>import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 20, 5)
+        self.conv2 = nn.Conv2d(20, 20, 5)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        return F.relu(self.conv2(x))</code></pre>
+<p>Submodules assigned in this way will be registered, and will have their parameters converted too when you call :meth:<code>to</code>, etc.</p>
+<p>.. note:: As per the example above, an <code>__init__()</code> call to the parent class must be made before assignment on the child.</p>
+<p>:ivar training: Boolean represents whether this module is in training or evaluation mode. :vartype training: bool</p>
+<div id="cell-16" class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>a <span class="op">=</span> torch.randint(<span class="dv">256</span>,[<span class="dv">4</span>, <span class="dv">4</span>])</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>b, _ <span class="op">=</span> UniformDequantization()._forward_and_log_det_jacobian(a)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(a)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(b)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>tensor([[104, 161,  55, 237],
+        [118, 240, 207, 226],
+        [176, 207, 213, 247],
+        [241,  86, 108, 181]])
+tensor([[0.4095, 0.6310, 0.2175, 0.9286],
+        [0.4627, 0.9413, 0.8123, 0.8858],
+        [0.6902, 0.8096, 0.8325, 0.9685],
+        [0.9422, 0.3367, 0.4233, 0.7083]])</code></pre>
+</div>
+</div>
+<div id="cell-17" class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> UniformDequantization()._inverse(b)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(c)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>tensor([[104., 161.,  55., 237.],
+        [118., 240., 207., 226.],
+        [176., 207., 213., 247.],
+        [241.,  86., 108., 181.]])</code></pre>
+</div>
+</div>
+<section id="variational-dequantization-to-do" class="level4">
+<h4 class="anchored" data-anchor-id="variational-dequantization-to-do">Variational Dequantization (TO DO)</h4>
+</section>
+</section>
+<section id="conditional-linear" class="level3">
+<h3 class="anchored" data-anchor-id="conditional-linear">Conditional Linear</h3>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L381" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="conditionallinear" class="level3">
+<h3 class="anchored" data-anchor-id="conditionallinear">ConditionalLinear</h3>
+<blockquote class="blockquote">
+<pre><code> ConditionalLinear (device='cpu', name='linear_transformation',
+                    codes={'code': [1, 2, 3]})</code></pre>
+</blockquote>
+<p>Conditional linear transformation module.</p>
+<p>Applies different scales and biases based on average pixel size and camera values provided in the input. Supports both forward and inverse transformations.</p>
+<p>Attributes: name (str): Name of the transformation. setup_code (torch.Tensor): Predefined set of pixel sizes. exp_times (torch.Tensor): Predefined set of camera values. log_scale (torch.nn.Parameter): Learnable log-scale parameters. bias (torch.nn.Parameter): Learnable bias parameters.</p>
+<p>Methods: _inverse(z, **kwargs): Performs the inverse transformation based on the input ‘z’ and conditionals.</p>
+<pre><code>_forward_and_log_det_jacobian(x, **kwargs):
+    Performs the forward transformation and computes the log determinant of the Jacobian.</code></pre>
+<div id="cell-21" class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>codes <span class="op">=</span> {</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">10</span>, <span class="dv">50</span>, <span class="dv">100</span>], dtype<span class="op">=</span>torch.float32, device<span class="op">=</span>device),</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 'camera': torch.tensor([0, 1], dtype=torch.float32).to(device)</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.randn(batch_size, channels, height, width).to(device)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>setup_idx <span class="op">=</span> torch.tensor([<span class="dv">1</span>] <span class="op">*</span> batch_size, dtype<span class="op">=</span>torch.float32).to(device)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>time_idx <span class="op">=</span> torch.tensor([<span class="dv">10</span>] <span class="op">*</span> batch_size, dtype<span class="op">=</span>torch.float32).to(device)</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>kwargs <span class="op">=</span> {<span class="st">'optical-setup'</span>: setup_idx, <span class="st">'exposure-time'</span>: time_idx}</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(ComputeIndex(codes)(batch_size, <span class="op">**</span>kwargs))</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Forward transformation</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>z, log_det_jacobian <span class="op">=</span> ConditionalLinear(device<span class="op">=</span>device, codes<span class="op">=</span>codes)._forward_and_log_det_jacobian(x, <span class="op">**</span>kwargs)</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> z.shape <span class="op">==</span> x.shape</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> log_det_jacobian.shape <span class="op">==</span> torch.Size([batch_size])</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Inverse transformation</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>x_reconstructed <span class="op">=</span> ConditionalLinear(device<span class="op">=</span>device, codes<span class="op">=</span>codes)._inverse(z, <span class="op">**</span>kwargs)</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> x_reconstructed.shape <span class="op">==</span> x.shape</span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if the reconstructed input is close to the original input</span></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> torch.allclose(x, x_reconstructed, atol<span class="op">=</span><span class="fl">1e-5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>tensor([1., 1.], device='cuda:0')</code></pre>
+</div>
+</div>
+</section>
+<section id="conditional-linear-e2" class="level3">
+<h3 class="anchored" data-anchor-id="conditional-linear-e2">Conditional Linear <span class="math inline">\(e^2\)</span></h3>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L479" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="conditionallinearexp2" class="level3">
+<h3 class="anchored" data-anchor-id="conditionallinearexp2">ConditionalLinearExp2</h3>
+<blockquote class="blockquote">
+<pre><code> ConditionalLinearExp2 (in_ch=1, device='cpu',
+                        name='linear_transformation_exp2', codes={'code':
+                        [1, 2, 3]})</code></pre>
+</blockquote>
+<p>Conditional linear transformation layer for flows, conditioned on specific ISO levels and setup codes.</p>
+<p>This module applies a linear transformation to the input tensor, where the transformation parameters (log scale and bias) are conditioned based on the pixel size and setup code provided as input. The module supports both forward and inverse transformations.</p>
+<p>Attributes: name (str): Name of the module. device (str): Device to run computations on. pixel_size (tensor): pixel size used for conditioning. cam_vals (tensor): Predefined setup codes used for conditioning. log_scale (nn.Parameter): Learnable log scale parameters for the transformation. bias (nn.Parameter): Learnable bias parameters for the transformation.</p>
+<p>Methods: _inverse(z, **kwargs): Applies the inverse transformation to the input tensor z.</p>
+<pre><code>_forward_and_log_det_jacobian(x, **kwargs):
+    Applies the forward transformation to the input tensor x and computes the log determinant
+    of the Jacobian of the transformation.</code></pre>
+<div id="cell-24" class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>batch_size <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>channels <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>height <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>width <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>codes <span class="op">=</span> {</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">10</span>, <span class="dv">50</span>, <span class="dv">100</span>], dtype<span class="op">=</span>torch.float32, device<span class="op">=</span>device),</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 'camera': torch.tensor([0, 1], dtype=torch.float32).to(device)</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.randn(batch_size, channels, height, width).to(device)</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>kwargs <span class="op">=</span> {</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">50</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>], dtype<span class="op">=</span>torch.float32).to(device)</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a> <span class="co"># Forward transformation</span></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>z, log_det_jacobian <span class="op">=</span> ConditionalLinearExp2(device<span class="op">=</span>device, in_ch<span class="op">=</span>x.shape[<span class="dv">1</span>], codes<span class="op">=</span>codes)._forward_and_log_det_jacobian(x, <span class="op">**</span>kwargs)</span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> z.shape <span class="op">==</span> x.shape</span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> log_det_jacobian.shape <span class="op">==</span> torch.Size([batch_size])</span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Inverse transformation</span></span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>x_reconstructed <span class="op">=</span> ConditionalLinearExp2(device<span class="op">=</span>device, in_ch<span class="op">=</span>x.shape[<span class="dv">1</span>], codes<span class="op">=</span>codes)._inverse(z, <span class="op">**</span>kwargs)</span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> x_reconstructed.shape <span class="op">==</span> x.shape</span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Check if the reconstructed input is close to the original input</span></span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> torch.allclose(x, x_reconstructed, atol<span class="op">=</span><span class="fl">1e-5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="signal-dependent-conditional-linear" class="level3">
+<h3 class="anchored" data-anchor-id="signal-dependent-conditional-linear">Signal Dependent Conditional Linear</h3>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L581" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="signaldependentconditionallinear" class="level3">
+<h3 class="anchored" data-anchor-id="signaldependentconditionallinear">SignalDependentConditionalLinear</h3>
+<blockquote class="blockquote">
+<pre><code> SignalDependentConditionalLinear (meta_encoder, scale_and_bias, in_ch=1,
+                                   device='cpu', name='signal_dependent_co
+                                   ndition_linear', codes={'code': [1, 2,
+                                   3]}, encode_ch=3)</code></pre>
+</blockquote>
+<p>Signal-dependent conditional linear transformation layer for flows.</p>
+<p>This module applies a linear transformation to the input tensor, where the transformation parameters (log scale and bias) are conditioned on ISO levels and smartphone codes provided as input features. The conditioning is performed using embeddings generated from meta encoders and scale-and-bias modules.</p>
+<p>Attributes: name (str): Name of the module. device (str): Device to run computations on. in_ch (int): Number of input channels. setup_codes (tensor): Predefined ISO levels used for conditioning. exp_times (tensor): Predefined smartphone codes used for conditioning. encode_ch (int): Number of channels in the embeddings generated by the meta encoder. meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs. scale_and_bias (nn.Module): Module to compute scale and bias parameters based on embeddings and input features.</p>
+<p>Methods: _get_embeddings(x, **kwargs): Generates embeddings from ISO-level and smartphone-code inputs and concatenates them with additional features.</p>
+<pre><code>_inverse(z, **kwargs):
+    Applies the inverse transformation to the input tensor z.
+
+_forward_and_log_det_jacobian(x, **kwargs):
+    Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.</code></pre>
+<div id="cell-27" class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> Noise2Model.networks <span class="im">import</span> ResidualNet</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-28" class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.randn(batch_size, channels, height, width).to(device)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>kwargs <span class="op">=</span> {</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">50</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'clean'</span>: x,</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>codes <span class="op">=</span> {</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">10</span>, <span class="dv">50</span>, <span class="dv">100</span>], dtype<span class="op">=</span>torch.float32, device<span class="op">=</span>device),</span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 'camera': torch.tensor([0, 1], dtype=torch.float32).to(device)</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>layer <span class="op">=</span> SignalDependentConditionalLinear(<span class="kw">lambda</span> feats_in, feats_out: ResidualNet(in_features<span class="op">=</span>feats_in,</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>                        out_features<span class="op">=</span>feats_out,</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>                        hidden_features<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>                        num_blocks<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>                        use_batch_norm<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>                        dropout_probability<span class="op">=</span><span class="fl">0.0</span>).to(device), <span class="kw">lambda</span> feats_in, feats_out: PointwiseConvs(in_features<span class="op">=</span>feats_in,</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>                        out_features<span class="op">=</span>feats_out, device<span class="op">=</span>device,</span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>                        feats<span class="op">=</span><span class="dv">1</span>), device<span class="op">=</span>device, in_ch<span class="op">=</span>x.shape[<span class="dv">1</span>], codes<span class="op">=</span>codes)</span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>z, log_abs_det_J_inv <span class="op">=</span> layer._forward_and_log_det_jacobian(x, <span class="op">**</span>kwargs)</span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> z.device <span class="op">==</span> x.device</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="structure-aware-conditional-linear-layer" class="level3">
+<h3 class="anchored" data-anchor-id="structure-aware-conditional-linear-layer">Structure-Aware Conditional Linear Layer</h3>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L705" target="_blank" style="float:right; font-size:smaller">source</a></p>
+</section>
+<section id="structureawareconditionallinearlayer" class="level3">
+<h3 class="anchored" data-anchor-id="structureawareconditionallinearlayer">StructureAwareConditionalLinearLayer</h3>
+<blockquote class="blockquote">
+<pre><code> StructureAwareConditionalLinearLayer (meta_encoder, structure_encoder,
+                                       in_ch=1, device='cpu', name='struct
+                                       ure_aware_condition_linear',
+                                       codes={'code': [1, 2, 3]})</code></pre>
+</blockquote>
+<p>Structure-aware conditional linear transformation layer for flows.</p>
+<p>This module applies a linear transformation to the input tensor, where the transformation parameters (log scale and bias) are conditioned on ISO levels and smartphone codes provided as input features. The conditioning involves both meta encoding and structure encoding of input features.</p>
+<p>Attributes: in_ch (int): Number of input channels. iso_vals (tensor): Predefined ISO levels used for conditioning. cam_vals (tensor): Predefined smartphone codes used for conditioning. meta_encoder (nn.Module): Meta encoder module to generate embeddings from ISO and camera inputs. structure_encoder (nn.Module): Structure encoder module to generate embeddings from input features.</p>
+<p>Methods: _get_embeddings(x, **kwargs): Generates embeddings from ISO-level and smartphone-code inputs and combines them using structure encoding.</p>
+<pre><code>_inverse(z, **kwargs):
+    Applies the inverse transformation to the input tensor z.
+
+_forward_and_log_det_jacobian(x, **kwargs):
+    Applies the forward transformation to the input tensor x and computes the log determinant of the Jacobian.</code></pre>
+<div id="cell-31" class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> Noise2Model.networks <span class="im">import</span> ResidualNet</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-32" class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.randn(batch_size, channels, height, width).to(device)</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>kwargs <span class="op">=</span> {</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">50</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'clean'</span>: x,</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>codes <span class="op">=</span> {</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">10</span>, <span class="dv">50</span>, <span class="dv">100</span>], dtype<span class="op">=</span>torch.float32, device<span class="op">=</span>device),</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>, <span class="dv">1</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># 'camera': torch.tensor([0, 1], dtype=torch.float32).to(device)</span></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>layer <span class="op">=</span> StructureAwareConditionalLinearLayer(<span class="kw">lambda</span> feats_in, feats_out: ResidualNet(in_features<span class="op">=</span>feats_in,</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>                        out_features<span class="op">=</span>feats_out,</span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>                        hidden_features<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>                        num_blocks<span class="op">=</span><span class="dv">3</span>,</span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>                        use_batch_norm<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>                        dropout_probability<span class="op">=</span><span class="fl">0.0</span>).to(device), <span class="kw">lambda</span> feats_in, feats_out: SpatialConvs(in_features<span class="op">=</span>feats_in,</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>                        out_features<span class="op">=</span>feats_out, device<span class="op">=</span>device,</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>                        feats<span class="op">=</span><span class="dv">1</span>), device<span class="op">=</span>device, in_ch<span class="op">=</span>x.shape[<span class="dv">1</span>], codes<span class="op">=</span>codes)</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>z, log_abs_det_J_inv <span class="op">=</span> layer._forward_and_log_det_jacobian(x, <span class="op">**</span>kwargs)</span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> z.device <span class="op">==</span> x.device</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="noise-extraction" class="level2">
+<h2 class="anchored" data-anchor-id="noise-extraction">Noise Extraction</h2>
+<hr>
+<p><a href="https://github.com/bmandracchia/Noise2Model/blob/main/Noise2Model/layers.py#L820" target="_blank" style="float:right; font-size:smaller">source</a></p>
+<section id="noiseextraction" class="level3">
+<h3 class="anchored" data-anchor-id="noiseextraction">NoiseExtraction</h3>
+<blockquote class="blockquote">
+<pre><code> NoiseExtraction (device='cpu', name='noise_extraction')</code></pre>
+</blockquote>
+<p>Module for noise extraction in neural networks.</p>
+<p>This module extracts noise by adding or subtracting the clean signal from the input.</p>
+<p>Attributes: name (str): Name of the module. device (str): Device to run computations on.</p>
+<p>Methods: _inverse(z, **kwargs): Computes the inverse operation by adding the clean signal to z.</p>
+<pre><code>_forward_and_log_det_jacobian(x, **kwargs):
+    Computes forward operation by subtracting the clean signal from x and returns a zero log determinant Jacobian.</code></pre>
+<div id="cell-35" class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>device <span class="op">=</span> <span class="st">'cuda'</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.rand(batch_size, channels, height, width).to(device)</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'x:'</span>, x)</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>kwargs <span class="op">=</span> {</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">'exposure-time'</span>: torch.tensor([<span class="dv">50</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">'optical-setup'</span>: torch.tensor([<span class="dv">0</span>], dtype<span class="op">=</span>torch.float32).to(device),</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">'clean'</span>: torch.rand(batch_size, channels, height, width).to(device),</span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'clean:'</span>, kwargs[<span class="st">'clean'</span>])</span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>layer <span class="op">=</span> NoiseExtraction(device<span class="op">=</span>device)</span>
+<span id="cb33-15"><a href="#cb33-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-16"><a href="#cb33-16" aria-hidden="true" tabindex="-1"></a>z, _ <span class="op">=</span> layer._forward_and_log_det_jacobian(x, <span class="op">**</span>kwargs)</span>
+<span id="cb33-17"><a href="#cb33-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">'</span><span class="ch">\n\n</span><span class="st"> z:'</span>, z)</span>
+<span id="cb33-18"><a href="#cb33-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-19"><a href="#cb33-19" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> z.device <span class="op">==</span> x.device</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>x: tensor([[[[0.9044, 0.5942],
+          [0.6439, 0.8483]]],
+
+
+        [[[0.7072, 0.7334],
+          [0.7445, 0.8308]]]], device='cuda:0')
+clean: tensor([[[[0.3914, 0.9923],
+          [0.3723, 0.7225]]],
+
+
+        [[[0.9459, 0.6627],
+          [0.8506, 0.3440]]]], device='cuda:0')
+
+
+ z: tensor([[[[ 0.5130, -0.3981],
+          [ 0.2717,  0.1258]]],
+
+
+        [[[-0.2387,  0.0707],
+          [-0.1061,  0.4868]]]], device='cuda:0')</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="noise-flow-layers" class="level1">
+<h1>Noise Flow Layers</h1>
+<div id="cell-37" class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co"># channels = 1</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="co"># hidden_channels = 16</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="co"># device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="co"># x = torch_randn(1, channels, 16, 16).to(device)</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a><span class="co"># print(x.device)</span></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a><span class="co"># # tst =  AffineSdn(x.shape[1:]).to(device)</span></span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a><span class="co"># tst = Unconditional(channels=x.shape[1],hidden_channels = 16,split_mode='channel' if x.shape[1] != 1 else 'checkerboard').to(device)</span></span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a><span class="co"># # tst = Gain(x.shape[1:]).to(device)  </span></span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a><span class="co"># print(tst)</span></span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="co"># kwargs = {}; kwargs['clean'] = x</span></span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a><span class="co"># y, _ = tst(x,**kwargs)</span></span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a><span class="co"># test_eq(y.shape, x.shape)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/bmandracchia\.github\.io\/Noise2Model");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+<footer class="footer"><div class="nav-footer"><div class="nav-footer-center"><div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/bmandracchia/Noise2Model/issues/new" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></div></div></footer></body></html>

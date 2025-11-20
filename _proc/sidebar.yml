@@ -1,0 +1,19 @@
+website:
+  sidebar:
+    contents:
+      - index.ipynb
+      - 00_core.ipynb
+      - 01_data.ipynb
+      - 02_layers.ipynb
+      - 03_nets.ipynb
+      - 04_models.ipynb
+      - 05_loss.ipynb
+      - 06_trainer.ipynb
+      - 09_utils.ipynb
+      - section: demos
+        contents:
+          - demos/99_demo.ipynb
+          - demos/99_demo2.ipynb
+          - demos/99_demo2_den.ipynb
+          - demos/99_demo2_den2.ipynb
+          - demos/XX_demo_GAN.ipynb

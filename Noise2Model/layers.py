@@ -700,7 +700,7 @@ class SignalDependentConditionalLinear(nn.Module):
         return z, log_abs_det_J_inv
 
 
-# %% ../nbs/02_layers.ipynb 32
+# %% ../nbs/02_layers.ipynb 33
 @regist_layer
 class StructureAwareConditionalLinearLayer(nn.Module):
     """
@@ -815,7 +815,7 @@ class StructureAwareConditionalLinearLayer(nn.Module):
 
 
 
-# %% ../nbs/02_layers.ipynb 35
+# %% ../nbs/02_layers.ipynb 37
 @regist_layer
 class NoiseExtraction(nn.Module):
     """
@@ -877,7 +877,7 @@ class NoiseExtraction(nn.Module):
         return z, ldj
 
 
-# %% ../nbs/02_layers.ipynb 38
+# %% ../nbs/02_layers.ipynb 40
 # class Gain(Flow):
 #     """
 #     Gain & Offset flow layer

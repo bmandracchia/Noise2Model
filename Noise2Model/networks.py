@@ -176,28 +176,32 @@ class MyUNet(nn.Module):
                  depth=4,						# depth of the UNet network
                  mult_chan=32,					# number of filters at first layer
                  in_channels=1,					# number of input channels
-                 out_channels=1,					# number of output channels
+                 out_channels=1,			    # number of output channels
                  last_activation=None,			# last activation before final result
                  kernel_size=3,					# kernel size of convolutional layers
-                 ndim=2,							# number of spatial dimensions of the input data
-                 n_conv_per_depth=2,				# number of convolutions per layer
+                 ndim=2,						# number of spatial dimensions of the input data
+                 n_conv_per_depth=2,			# number of convolutions per layer
                  activation='ReLU',				# activation function used in convolutional layers
-                 norm_type=NormType.Batch,
-                 dropout=0.0,
-                 pool=MaxPool,
-                 pool_size=2,
-                 residual=False,
-                 prob_out=False,
-                 eps_scale=1e-3,
+                 norm_type=NormType.Batch,		# normalization type for layers
+                 dropout=0.0,					# dropout rate
+                 pool=MaxPool,					# pooling layer type
+                 pool_size=2,					# pooling size
+                 residual=False,				# use residual connection
+                 prob_out=False,				# output probability scale
+                 eps_scale=1e-3,				# epsilon for scale output
                  ):
         super().__init__()
+        # Set last activation function; default to activation if not specified
         last_activation = getattr(F, f"{activation.lower()}") if last_activation == None else getattr(
             F, f"{last_activation.lower()}")
+        # Get activation class from nn module
         activation = getattr(nn, f"{activation}")
-        store_attr()		# stores all the input parameters in self
-
+        # Store all input parameters as attributes
+        store_attr()
+        # Recursive UNet core
         self.net_recurse = _Net_recurse(depth, mult_chan, in_channels, kernel_size, ndim,
                                         n_conv_per_depth, activation, norm_type, dropout, pool, pool_size)
+        # Final output convolution layer
         self.conv_out = ConvLayer(mult_chan*in_channels, out_channels, ndim=ndim,
                                   ks=kernel_size, norm_type=None, act_cls=None, padding=1)
 

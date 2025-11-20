@@ -29,6 +29,17 @@ _C.MODEL.UNET.up_mode = 'upconv'
 _C.MODEL.UNET.residual = True
 _C.MODEL.UNET.drop_p = 0.15
 
+_C.MODEL.MYUNET = CN()
+_C.MODEL.MYUNET.in_channels = 1
+_C.MODEL.MYUNET.out_channels = 1
+_C.MODEL.MYUNET.depth = 4
+_C.MODEL.MYUNET.mult_chan = 32
+_C.MODEL.MYUNET.residual = False
+_C.MODEL.MYUNET.last_activation = None
+_C.MODEL.MYUNET.kernel_size = 3
+_C.MODEL.MYUNET.ndim = 2
+_C.MODEL.MYUNET.n_conv_per_depth = 2
+
 _C.MODEL.NMFLOWGAN_CRITIC = CN()
 _C.MODEL.NMFLOWGAN_CRITIC.in_ch = 3
 _C.MODEL.NMFLOWGAN_CRITIC.nc = 64

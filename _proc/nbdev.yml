@@ -1,0 +1,9 @@
+project:
+  output-dir: _docs
+
+website:
+  title: "Noise2Model"
+  site-url: "https://bmandracchia.github.io/Noise2Model"
+  description: "unsupervised denoising for fluorescence microscopy with physics-based modeling"
+  repo-branch: main
+  repo-url: "https://github.com/bmandracchia/Noise2Model"

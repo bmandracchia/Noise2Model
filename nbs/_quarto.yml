@@ -3,11 +3,15 @@ project:
 
 format:
   html:
-    theme: cosmo
-    css: styles.css
+    theme:
+      light: [cosmo, theme.scss]
+      dark: [cosmo, theme-dark.scss]
+    # css: styles.css
+    mainfont: "Atkinson Hyperlegible"
     toc: true
 
 website:
+  page-navigation: true
   twitter-card: true
   open-graph: true
   repo-actions: [issue]
@@ -15,6 +19,23 @@ website:
     background: primary
     search: true
   sidebar:
-    style: floating
+    background: "#D9E3E4"
+    # logo: "images/logo.png"
+    pinned: true
+    align: center
+    tools:
+      - icon: github
+        href: https://github.com/bmandracchia/Noise2Model
+        text: "GitHub organization"
+      - icon: person-fill
+        text: "Collaborators"
+        menu:
+          - text: B. Mandracchia
+            url: https://bmandracchia.github.io
+          - text: deepCLEM
+            url: https://deepclem.github.io
+    style: "docked"
+    search: false
+    collapse-level: 1
 
 metadata-files: [nbdev.yml, sidebar.yml]

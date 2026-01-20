@@ -26,7 +26,7 @@ MODEL:
   test_input_type: ['noisy', 'clean', 'kwargs']
   NMFLOW:
     in_ch: 1
-    num_bits: 8
+    num_bits: 16
     pre_arch: "UD" 
     arch: "NE|SAL|SDL|CL2|SAL|SDL|CL2"
     conv_net_feats: 16
@@ -43,7 +43,7 @@ MODEL:
   NMFLOWGAN_CRITIC:
     in_ch: 2
     nc: 64
-    num_bits: 8
+    num_bits: 16
 
 TRAIN:
   init_lr: 1e-4
@@ -64,7 +64,7 @@ VALIDATION:
   add_con: 0.5
   scale: None
   floor: True
-  using_bits: 8
+  using_bits: 16
   save_image: True
 
 TEST:
@@ -75,4 +75,4 @@ TEST:
   floor: True
   imread: 'rgb'
   save_ext: 'png'
-  using_bits: 8
+  using_bits: 16

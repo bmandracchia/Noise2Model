@@ -955,9 +955,9 @@ class NoiseFlowGANTrainer(BaseTrainer):
                 gen_name = '%05d_GEN_%.6f'%(idx, kld) if 'real_noisy' in data else '%05d_GEN'%idx
 
                 # imwrite
-                if 'clean' in data:         self.file_manager.save_img_tensor(img_save_path, '%05d_CL'%idx, clean_img, ext=self.config.TEST.save_ext)
-                if noisy_img is not None: self.file_manager.save_img_tensor(img_save_path, '%05d_N'%idx, noisy_img, ext=self.config.TEST.save_ext)
-                self.file_manager.save_img_tensor(img_save_path, gen_name, fake_img, ext=self.config.TEST.save_ext)
+                if 'clean' in data:         self.file_manager.save_img_tensor(img_save_path, '%05d_CL'%idx, clean_img, ext=self.config.TEST.save_ext, using_bits=using_bits)
+                if noisy_img is not None: self.file_manager.save_img_tensor(img_save_path, '%05d_N'%idx, noisy_img, ext=self.config.TEST.save_ext, using_bits=using_bits)
+                self.file_manager.save_img_tensor(img_save_path, gen_name, fake_img, ext=self.config.TEST.save_ext, using_bits=using_bits)
                 
             if info:
                 if 'real_noisy' in data:
@@ -1184,6 +1184,14 @@ class SLDenoisingTrainer(BaseTrainer):
             if add_con: denoised_image += add_con
             if floor: denoised_image = torch.floor(denoised_image)
 
+            if using_bits:
+                dtype = torch.uint8 if using_bits <= 8 else torch.uint16
+                max_val = 2**using_bits - 1
+                denoised_image = torch.clip(denoised_image, 0, max_val).to(dtype)
+                for key in data:
+                    if key in ['clean', 'real_noisy', 'noisy', 'syn_noisy']:
+                        data[key] = torch.clip(data[key], 0, max_val).to(dtype)
+
             # evaluation
             if 'clean' in data:
                 psnr_value = psnr(denoised_image, data['clean'], 
@@ -1210,9 +1218,9 @@ class SLDenoisingTrainer(BaseTrainer):
                 denoi_name = '%05d_DN_%.2f'%(idx, psnr_value) if 'clean' in data else '%05d_DN'%idx
 
                 # imwrite
-                if 'clean' in data:         self.file_manager.save_img_tensor(img_save_path, '%05d_CL'%idx, clean_img, ext=self.config.TEST.save_ext)
-                if noisy_img is not None: self.file_manager.save_img_tensor(img_save_path, '%05d_N'%idx, noisy_img, ext=self.config.TEST.save_ext)
-                self.file_manager.save_img_tensor(img_save_path, denoi_name, denoi_img, ext=self.config.TEST.save_ext)
+                if 'clean' in data:         self.file_manager.save_img_tensor(img_save_path, '%05d_CL'%idx, clean_img, ext=self.config.TEST.save_ext, using_bits=using_bits)
+                if noisy_img is not None: self.file_manager.save_img_tensor(img_save_path, '%05d_N'%idx, noisy_img, ext=self.config.TEST.save_ext, using_bits=using_bits)
+                self.file_manager.save_img_tensor(img_save_path, denoi_name, denoi_img, ext=self.config.TEST.save_ext, using_bits=using_bits)
                 
             if info:
                 if 'clean' in data:

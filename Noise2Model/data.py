@@ -3,7 +3,7 @@
 # %% auto 0
 __all__ = ['dataset_class_dict', 'regist_dataset', 'get_dataset_class', 'get_FMD_img_paths', 'get_png_img_paths',
            'get_tif_img_paths', 'convert_setup_code', 'convert_camera_code', 'convert_sample_code', 'parse_dir_name',
-           'parse_file_name', 'crop', 'preprocessing', 'find_support_scene', 'load_and_display_hdf5_image',
+           'parse_file_name', 'ImageCropper', 'preprocessing', 'find_support_scene', 'load_and_display_hdf5_image',
            'BaseDataset', 'SIDD_HDF', 'SIDD_val', 'SIDD_benchmark']
 
 # %% ../nbs/01_data.ipynb 4
@@ -153,23 +153,46 @@ def parse_file_name(path):
     }
 
 # %% ../nbs/01_data.ipynb 20
-def crop(img, size, overlap):
-    crops = list()
-    img = img.transpose(2,0,1)
-    _,h,w = img.shape
-    i,j = 0, 0
-    while i < h:
-        while j < w:
-            roi_x, roi_y = j, i
-            if i + size > h: roi_y = h - size 
-            if j + size > w: roi_x = w - size
-            # crops.append(img[:,roi_y:roi_y+size,roi_x:roi_x+size])
-            crops.append(img[:1,roi_y:roi_y+size,roi_x:roi_x+size])
-            j+=overlap
-        j=0
-        i+=overlap
-    i=0
-    return crops
+class ImageCropper:
+    """
+    A class to crop images into patches with step (stride), supporting 2D images (grayscale and color).
+    
+    For 2D grayscale images (H, W), treats as (1, H, W) internally.
+    For 2D color images (H, W, C), transposes to (C, H, W) internally.
+    Crops in H and W dimensions, returning patches of shape (C, patch_size, patch_size).
+    """
+    def __init__(self, patch_size, step):
+        self.patch_size = patch_size
+        self.step = step
+    
+    def __call__(self, img):
+        # Handle input shapes
+        if img.ndim == 2:
+            # Grayscale: (H, W) -> (1, H, W)
+            img = img[np.newaxis, ...]
+        elif img.ndim == 3:
+            # Color: (H, W, C) -> (C, H, W)
+            img = img.transpose(2, 0, 1)
+        else:
+            raise ValueError("Unsupported image dimensions. Expected 2D (H, W) or 3D (H, W, C).")
+        
+        C, H, W = img.shape
+        crops = []
+        i = 0
+        while i < H:
+            j = 0
+            while j < W:
+                roi_y = i
+                roi_x = j
+                if i + self.patch_size > H:
+                    roi_y = H - self.patch_size
+                if j + self.patch_size > W:
+                    roi_x = W - self.patch_size
+                crop = img[:, roi_y:roi_y + self.patch_size, roi_x:roi_x + self.patch_size]
+                crops.append(crop)
+                j += self.step
+            i += self.step
+        return crops
 
 # %% ../nbs/01_data.ipynb 21
 #| export
@@ -179,7 +202,7 @@ def crop(img, size, overlap):
 # %% ../nbs/01_data.ipynb 23
 def preprocessing(data_path,
                     patch_size = 96,
-                    overlap = 8,
+                    step = 88,
                     mode = 'NOISE_GEN', # ['NOISE_GEN', 'DENOISER', 'ALL']
                     output_base_path = '../_data/HDF5_confocal_s96_o08',
                     train_noisegen_idx = [1], #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
@@ -194,12 +217,13 @@ def preprocessing(data_path,
     img_paths = get_img_paths_func(data_path) #load paths
     
     for img_idx, img_path in enumerate(tqdm(img_paths)):
-        img_gt = cv2.imread(img_path['GT'], cv2.IMREAD_COLOR) # read gt images
-        img_noisy = cv2.imread(img_path['NOISY'], cv2.IMREAD_COLOR) # read noisy images
+        img_gt = cv2.imread(img_path['GT'], cv2.IMREAD_ANYDEPTH) # read gt images
+        img_noisy = cv2.imread(img_path['NOISY'], cv2.IMREAD_ANYDEPTH) # read noisy images
         config = parse_config(img_path)
         
-        img_gt_crops = crop(img_gt, patch_size, overlap)
-        img_noisy_crops = crop(img_noisy, patch_size, overlap)
+        cropper = ImageCropper(patch_size, step)
+        img_gt_crops = cropper(img_gt)
+        img_noisy_crops = cropper(img_noisy)
         assert len(img_gt_crops) == len(img_noisy_crops)
 
         output_dir_path  = output_base_path
@@ -272,7 +296,7 @@ def load_and_display_hdf5_image(file_path, dataset_name='clean', patch_num=20, s
     plt.imshow(image_data[slice], cmap='gray')  # Adjust cmap as per your image format
     plt.axis('off')
     plt.show()
-
+    return image_data
 
 
 # %% ../nbs/01_data.ipynb 35
@@ -604,22 +628,22 @@ class BaseDataset(Dataset):
 
             print('image %05d saved!'%idx)
 
-    def prep_save(self, img_idx:int, img_size:int, overlap:int, clean:bool=False, syn_noisy:bool=False, real_noisy:bool=False):
+    def prep_save(self, img_idx:int, img_size:int, step:int, clean:bool=False, syn_noisy:bool=False, real_noisy:bool=False):
         '''
         cropping am image into mini-size patches for efficient training.
         Args:
             img_idx (int) : index of image
             img_size (int) : size of image
-            overlap (int) : overlap between patches
+            step (int) : step between patches
             clean (bool) : save clean image (default: False)
             syn_noisy (bool) : save synthesized noisy image (default: False)
             real_noisy (bool) : save real noisy image (default: False)
         '''
-        d_name = '%s_s%d_o%d'%(self.__class__.__name__, img_size, overlap)
+        d_name = '%s_s%d_s%d'%(self.__class__.__name__, img_size, step)
         os.makedirs(os.path.join(self.dataset_dir, 'prep', d_name), exist_ok=True)
 
-        assert overlap < img_size
-        stride = img_size - overlap
+        assert step < img_size
+        stride = step
 
         if clean:
             clean_dir = os.path.join(self.dataset_dir, 'prep', d_name, 'CL')

@@ -143,25 +143,36 @@ def np2tensor_multi(n:np.array):
 
 
 # %% ../nbs/09_utils.ipynb 18
-def tensor2np(t:torch.Tensor):
+def tensor2np(t:torch.Tensor, using_bits=8):
     '''
     transform torch Tensor to numpy having opencv image form.
     RGB -> BGR
     (c,h,w) -> (h,w,c)
+    using_bits: 8 or 16 for output bit depth
     '''
     t = t.cpu().detach()
 
     # gray
     if len(t.shape) == 2:
-        return t.permute(1,2,0).numpy()
+        arr = t.permute(1,2,0).numpy()
     # RGB -> BGR
     elif len(t.shape) == 3:
-        return np.flip(t.permute(1,2,0).numpy(), axis=2)
+        arr = np.flip(t.permute(1,2,0).numpy(), axis=2)
     # image batch
     elif len(t.shape) == 4:
-        return np.flip(t.permute(0,2,3,1).numpy(), axis=3)
+        arr = np.flip(t.permute(0,2,3,1).numpy(), axis=3)
     else:
         raise RuntimeError('wrong tensor dimensions : %s'%(t.shape,))
+    
+    # Scale and cast based on using_bits
+    if using_bits == 8:
+        arr = arr.astype(np.uint8)
+    elif using_bits == 16:
+        arr = arr.astype(np.uint16)
+    else:
+        raise ValueError('using_bits must be 8 or 16')
+    
+    return arr
 
 
 # %% ../nbs/09_utils.ipynb 19
@@ -417,22 +428,48 @@ def make_predefiend_1d_to_2d(arr):
 # %% ../nbs/09_utils.ipynb 34
 def save_img(dir_name, file_name, img):
     path = os.path.join(dir_name, file_name)
+    os.makedirs(dir_name, exist_ok=True)
     if 'raw' in path[-3:]:
-        os.makedirs(dir_name, exist_ok=True)
-        with open(path, 'w') as fid:
+        with open(path, 'wb') as fid:
             img.tofile(fid)
     else:
-        if len(img.shape) == 3 and img.shape[-1] != 3 and img.shape[-1] > 1:
-            cv2.imwritemulti(path, img.transpose([2,0,1])) # multi stack image, convert to CHW
-        elif len(img.shape) == 4 and img.shape[0] > 1: # batch image, only grey image is available
-            img = img.squeeze(-1)
-            cv2.imwritemulti(path, img) 
-        elif len(img.shape) == 4 and img.shape[0] <= 1: # single batch image
-            img = img.squeeze(0)
+        # Normalize to (H, W) or (H, W, C)
+        if len(img.shape) == 2:
+            # (H, W) grayscale
             cv2.imwrite(path, img)
-        else:
-            cv2.imwrite(path, img)
-
+        elif len(img.shape) == 3:
+            if img.shape[0] in [1, 3] and img.shape[1] > img.shape[0] and img.shape[2] > img.shape[0]:
+                # Assume (C, H, W)
+                if img.shape[0] == 1:
+                    img = img.squeeze(0)  # (H, W)
+                    cv2.imwrite(path, img)
+                else:
+                    img = img.transpose(1, 2, 0)  # (H, W, 3)
+                    cv2.imwrite(path, img)
+            else:
+                # Assume (H, W, C)
+                if img.shape[-1] > 3:
+                    # Multi-channel, use imwritemulti as multi-page
+                    cv2.imwritemulti(path, img)
+                else:
+                    cv2.imwrite(path, img)
+        elif len(img.shape) == 4:
+            if img.shape[0] == 1:
+                # Single batch (1, C, H, W)
+                img = img.squeeze(0)
+                if img.shape[0] == 1:
+                    img = img.squeeze(0)  # (H, W)
+                    cv2.imwrite(path, img)
+                else:
+                    img = img.transpose(1, 2, 0)  # (H, W, C)
+                    if img.shape[-1] > 3:
+                        cv2.imwritemulti(path, img)
+                    else:
+                        cv2.imwrite(path, img)
+            else:
+                # Multi batch (B, 1, H, W) assume grayscale
+                img = img.squeeze(1)  # (B, H, W)
+                cv2.imwritemulti(path, img)
 
 # %% ../nbs/09_utils.ipynb 36
 class FileManager:
@@ -464,8 +501,8 @@ class FileManager:
         # -> './output/<session_name>/dir_name'
         return os.path.join(self.output_folder, self.session_name, dir_name)
 
-    def save_img_tensor(self, dir_name:str, file_name:str, img:torch.Tensor, ext='png'):
-        self.save_img_numpy(dir_name, file_name, tensor2np(img), ext)
+    def save_img_tensor(self, dir_name:str, file_name:str, img:torch.Tensor, ext='png', using_bits=8):
+        self.save_img_numpy(dir_name, file_name, tensor2np(img, using_bits), ext)
 
     def save_img_numpy(self, dir_name:str, file_name:str, img:np.array, ext='png'):
         if np.shape(img)[2] == 1:

@@ -112,21 +112,26 @@ def attributesFromDict(d):
         setattr(self, n, v)
 
 # %% ../nbs/09_utils.ipynb 14
-def np2tensor(n:np.array):
+def np2tensor(n: np.array, channel_first=False):
     '''
-    transform numpy array (image) to torch Tensor
-    BGR -> RGB
-    (h,w,c) -> (c,h,w)
+    Convert a numpy image array to a torch Tensor.
+    Handles grayscale and color images.
+    BGR -> RGB conversion for color images.
+    (H, W, C) -> (C, H, W)
+    If channel_first=True, assumes input is already (C, H, W) and skips conversion.
     '''
-    # gray
-    if len(n.shape) == 2:
-        n = np.expand_dims(n, axis=2)
-        return torch.from_numpy(np.ascontiguousarray(np.transpose(n, (2,0,1))))
-    # RGB -> BGR
-    elif len(n.shape) == 3:
-        return torch.from_numpy(np.ascontiguousarray(np.transpose(np.flip(n, axis=2), (2,0,1))))
+    if channel_first:
+        return torch.from_numpy(np.ascontiguousarray(n))
+    if n.ndim == 2:
+        # Grayscale: (H, W) -> (1, H, W)
+        n = n[np.newaxis, ...]
+        return torch.from_numpy(np.ascontiguousarray(n))
+    elif n.ndim == 3:
+        # Color: (H, W, C) -> (C, H, W), BGR -> RGB
+        n = np.transpose(n[..., ::-1], (2, 0, 1))
+        return torch.from_numpy(np.ascontiguousarray(n))
     else:
-        raise RuntimeError('wrong numpy dimensions : %s'%(n.shape,))
+        raise ValueError(f'Unsupported numpy shape: {n.shape}')
     
 
 

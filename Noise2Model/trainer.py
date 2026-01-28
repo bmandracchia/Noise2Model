@@ -769,12 +769,33 @@ class BaseTrainer():
 # %% ../nbs/06_trainer.ipynb 9
 @regist_trainer
 class NoiseFlowGANTrainer(BaseTrainer):
+    """
+    Trainer for NoiseFlowGAN model, handling training of generator and critic networks.
+    
+    This trainer manages the adversarial training process for noise modeling and denoising
+    using flow-based generative models combined with GAN components.
+    """
     def __init__(self, config):
+        """
+        Initialize the NoiseFlowGANTrainer.
+        
+        Args:
+            config: Configuration object containing training parameters and model settings.
+        """
         super().__init__(config)
         if config.TRAIN.NOISE_GENERATOR_TRAINER:
             self.trainer_config = config.TRAIN.NOISE_GENERATOR_TRAINER
 
     def _set_module(self):
+        """
+        Set up the generator and critic modules based on the model configuration.
+        
+        Configures the flow-based generator and discriminator/critic networks
+        according to the specified model parameters.
+        
+        Returns:
+            dict: Dictionary containing 'generator' and 'critic' modules.
+        """
         kwargs_gen_flow, kwargs_gen_generator, kwargs_critic = None, None, None
         if self.config.BASE.model.lower() == 'nmflowgan':
             kwargs_gen_flow = self.config.MODEL.NMFLOW
@@ -797,6 +818,15 @@ class NoiseFlowGANTrainer(BaseTrainer):
         return module
     
     def _set_optimizer(self):
+        """
+        Set up optimizers for the generator and critic.
+        
+        Creates separate optimizers for the generator and critic networks
+        using the configured optimization parameters.
+        
+        Returns:
+            dict: Dictionary containing optimizers for each module ('generator' and 'critic').
+        """
         optimizer = {}
         for key in self.module:
             optimizer[key] = self._set_one_optimizer(opt        = self.config.OPTIMIZER, 
